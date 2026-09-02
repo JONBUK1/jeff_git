@@ -2502,12 +2502,14 @@ const PROFILE_TAG_OPTIONS={
   tools:window.JOB_TOOLS,
   emp_skills:window.JOB_SKILLS,
   emp_tools:window.JOB_TOOLS,
+  job_tools:window.JOB_TOOLS,
   categories:CATEGORIES.slice(),
   al_categories:CATEGORIES.slice(),
-  languages:window.LANGUAGES.slice()
+  languages:window.LANGUAGES.slice(),
+  job_languages:window.LANGUAGES.slice()
 };
-const TAG_MAX={skills:5,tools:5,emp_skills:Infinity,emp_tools:Infinity,categories:3,al_categories:3,languages:5};
-const SELECT_TAG_KINDS=new Set(['categories','al_categories','languages']);
+const TAG_MAX={skills:5,tools:5,emp_skills:Infinity,emp_tools:Infinity,job_tools:Infinity,categories:3,al_categories:3,languages:5,job_languages:5};
+const SELECT_TAG_KINDS=new Set(['categories','al_categories','languages','job_languages']);
 function categoryPicker(kind,label){const tags=_profileTags[kind]||[];const max=TAG_MAX[kind]??3;const options=(PROFILE_TAG_OPTIONS[kind]||[]).filter(x=>!tags.includes(x));const full=tags.length>=max;return `<div class="fld"><span class="lab">${label} <span class="hint">(up to ${max})</span></span><div class="skills" id="${kind}_tags">${tags.map(t=>`<span class="skill">${esc(t)} <button type="button" class="linkbtn" onclick='removeTag(${JSON.stringify(kind)},${JSON.stringify(t)})' aria-label="Remove ${esc(t)}">×</button></span>`).join('')}</div><select class="input" id="${kind}_input" ${full?'disabled':''} onchange="if(this.value)addTag('${kind}',this.value)"><option value="">${full?'Maximum reached':'Select a category…'}</option>${options.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></div>`;}
 function refreshCategorySelect(kind){const sel=$('#'+kind+'_input');if(!sel||sel.tagName!=='SELECT')return;const tags=_profileTags[kind]||[];const max=TAG_MAX[kind]??3;const options=(PROFILE_TAG_OPTIONS[kind]||[]).filter(x=>!tags.includes(x));const full=tags.length>=max;sel.disabled=full;sel.innerHTML=`<option value="">${full?'Maximum reached':'Select a category…'}</option>`+options.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');}
 function tagPicker(kind,label){const tags=_profileTags[kind]||[];const max=TAG_MAX[kind]??5;const hint=max===Infinity?'(add as many as you need)':`(up to ${max})`;return `<div class="fld"><span class="lab">${label} <span class="hint">${hint}</span></span><div class="skills" id="${kind}_tags">${tags.map(t=>`<span class="skill">${esc(t)} <button type="button" class="linkbtn" onclick='removeTag(${JSON.stringify(kind)},${JSON.stringify(t)})' aria-label="Remove ${esc(t)}">×</button></span>`).join('')}</div><input class="input" id="${kind}_input" placeholder="Type to select…" oninput="tagInput('${kind}')" autocomplete="off"/><div id="${kind}_suggestions" style="display:none;position:relative;z-index:3;background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-top:4px;max-height:150px;overflow:auto"></div></div>`;}
@@ -3249,6 +3251,10 @@ function ViewPostJob(){
   const e=_editJob||savedDraft; const v=(x)=>e&&e[x]!=null?esc(String(e[x])):'';
   let _prefillSkills='';
   if(!e && store.user.employer_skills){ try{ const es=JSON.parse(store.user.employer_skills); if(Array.isArray(es)&&es.length)_prefillSkills=es.join(', '); }catch(err){} }
+  try{_profileTags.job_tools=JSON.parse((e&&e.required_tools)||'null')||(!e&&JSON.parse(store.user.employer_tools||'[]'))||[];}catch(err){_profileTags.job_tools=[];}
+  if(!Array.isArray(_profileTags.job_tools))_profileTags.job_tools=[];
+  try{_profileTags.job_languages=JSON.parse((e&&e.required_languages)||'[]');}catch(err){_profileTags.job_languages=[];}
+  if(!Array.isArray(_profileTags.job_languages))_profileTags.job_languages=[];
   const cdv=e&&e.closes_at?new Date(e.closes_at).toISOString().slice(0,10):'';
   const sel=(field,val)=> (e && e[field]===val)?' selected':'';
   return `<main><div class="wrap" style="max-width:700px">
@@ -3273,6 +3279,15 @@ function ViewPostJob(){
       <div class="row2"><label class="fld"><span class="lab">Required skills <span class="hint">(comma separated)</span></span><input class="input" id="jskills" value="${v('required_skills')||_prefillSkills}" placeholder="python, fastapi, postgresql"/></label>
         <label class="fld"><span class="lab">Location</span><input class="input" id="jloc" value="${v('location')||'Remote'}"/></label></div>
       ${_isStaffPoster?`<label class="fld"><span class="lab">Company name <span class="hint">(the company this role is for)</span></span><input class="input" id="jcompany" value="${v('company_name')}" placeholder="e.g. Acme Corp"/></label>`:''}
+      ${tagPicker('job_tools','Required tools')}
+      <div class="row2"><label class="fld"><span class="lab">Other required skills <span class="hint">(optional, read by our AI)</span></span><input class="input" id="jotherskills" placeholder="e.g. Stakeholder management, public speaking" value="${v('other_required_skills')}"/></label>
+        <label class="fld"><span class="lab">Other required tools <span class="hint">(optional, read by our AI)</span></span><input class="input" id="jothertools" placeholder="e.g. Zendesk plugin, internal CRM" value="${v('other_required_tools')}"/></label></div>
+      <div class="row2">
+        <label class="fld"><span class="lab">Minimum years of experience <span class="hint">(optional)</span></span><select id="jminexp"><option value="">— no minimum —</option>${window.EXPERIENCE_RANGES.map(x=>`<option value="${esc(x)}" ${(e&&e.min_experience_range===x)?'selected':''}>${x}</option>`).join('')}</select></label>
+        <label class="fld"><span class="lab">Minimum degree level <span class="hint">(optional)</span></span><select id="jmindeg"><option value="">— no minimum —</option>${window.DEGREE_LEVELS.map(x=>`<option value="${esc(x)}" ${(e&&e.min_degree_level===x)?'selected':''}>${x}</option>`).join('')}</select></label>
+      </div>
+      ${categoryPicker('job_languages','Required languages')}
+      <label class="fld"><span class="lab">Certifications / qualifications required <span class="hint">(optional, read by our AI)</span></span><textarea class="textarea" id="jcerts" placeholder="e.g. AWS Certified, PMP, relevant license">${v('required_certifications')}</textarea></label>
       <div class="row2">
         <label class="fld"><span class="lab">Category</span><select id="jcat">${CATEGORIES.map(cat=>`<option value="${cat}"${(e&&e.category===cat)?' selected':''}>${cat}</option>`).join('')}</select></label>
         <label class="fld"><span class="lab">Level</span><select id="jlevel">${['','Senior','Mid level','Junior','Intern'].map(lv=>`<option value="${lv}"${(e&&e.level===lv)?' selected':''}>${lv||'— select —'}</option>`).join('')}</select></label>
@@ -3314,7 +3329,9 @@ function togglePahFields(){
 }
 function saveJobDraft(silent){
   const val=id=>{const el=$(id);return el?el.value:'';};
-  const fields={title:val('#jtitle'),description:val('#jdesc'),required_skills:val('#jskills'),location:val('#jloc'),company_name:val('#jcompany'),category:val('#jcat'),level:val('#jlevel'),employment_type:val('#jtype'),pay_min:val('#jpmin'),pay_max:val('#jpmax'),currency:val('#jcur'),pay_period:val('#jperiod'),hours_per_week:val('#jhours'),timezone:val('#jtz'),remote_scope:val('#jscope'),remote_countries:val('#jcountries'),benefits:val('#jbenefits'),question1:val('#jq1'),question2:val('#jq2'),question3:val('#jq3'),question4:val('#jq4'),question5:val('#jq5'),closes_at:val('#jcloses'),visa_sponsorship:$('#jvisa')&&$('#jvisa').checked};
+  const fields={title:val('#jtitle'),description:val('#jdesc'),required_skills:val('#jskills'),location:val('#jloc'),company_name:val('#jcompany'),category:val('#jcat'),level:val('#jlevel'),employment_type:val('#jtype'),pay_min:val('#jpmin'),pay_max:val('#jpmax'),currency:val('#jcur'),pay_period:val('#jperiod'),hours_per_week:val('#jhours'),timezone:val('#jtz'),remote_scope:val('#jscope'),remote_countries:val('#jcountries'),benefits:val('#jbenefits'),question1:val('#jq1'),question2:val('#jq2'),question3:val('#jq3'),question4:val('#jq4'),question5:val('#jq5'),closes_at:val('#jcloses'),visa_sponsorship:$('#jvisa')&&$('#jvisa').checked,
+    required_tools:JSON.stringify(_profileTags.job_tools||[]),other_required_skills:val('#jotherskills'),other_required_tools:val('#jothertools'),
+    min_experience_range:val('#jminexp'),min_degree_level:val('#jmindeg'),required_languages:JSON.stringify(_profileTags.job_languages||[]),required_certifications:val('#jcerts')};
   saveDraft('job','current',fields); if(!silent)toast('Job draft saved');
 }
 function subscribeToPostModal(){
@@ -3337,6 +3354,11 @@ async function submitJob(){
   body.remote_scope=$('#jscope').value; body.remote_countries=g('#jcountries');
   body.benefits=g('#jbenefits'); body.visa_sponsorship=$('#jvisa').checked;
   if(pmin)body.pay_min=parseInt(pmin); if(pmax)body.pay_max=parseInt(pmax); if(hrs)body.hours_per_week=parseInt(hrs); if(tz)body.timezone=tz;
+  body.required_tools=JSON.stringify(_profileTags.job_tools||[]);
+  body.other_required_skills=g('#jotherskills'); body.other_required_tools=g('#jothertools');
+  body.min_experience_range=$('#jminexp').value||null; body.min_degree_level=$('#jmindeg').value||null;
+  body.required_languages=JSON.stringify(_profileTags.job_languages||[]);
+  body.required_certifications=g('#jcerts');
   const cd=$('#jcloses').value; if(cd){ body.closes_at = new Date(cd+'T23:59:59Z').toISOString(); }
   const servtypeEl=document.querySelector('input[name="jservtype"]:checked');
   const wantsPah=servtypeEl&&servtypeEl.value==='pay_as_you_hire';
