@@ -77,7 +77,7 @@
   h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:-.02em;line-height:1.08;margin:0}
   .mono{font-family:var(--mono)}
   .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--on-dark-muted)}
-  .wrap{max-width:1120px;margin:0 auto;padding:0 26px}
+  .wrap{max-width:1360px;margin:0 auto;padding:0 26px}
   header.nav{position:sticky;top:0;z-index:40;background:var(--nav-bg);backdrop-filter:saturate(140%) blur(8px);border-bottom:1px solid var(--line)}
   .nav-in{display:flex;align-items:center;gap:20px;height:64px}
   .brand{display:flex;align-items:baseline;gap:9px;cursor:pointer;user-select:none}
@@ -138,6 +138,16 @@
   .input,.textarea,select{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;font-family:var(--sans);font-size:14px;color:var(--ink)}
   .input:focus,.textarea:focus,select:focus{outline:2px solid var(--signal);border-color:var(--signal)}
   .textarea{min-height:100px;resize:vertical;line-height:1.5}
+  .rte{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .rte:focus-within{outline:2px solid var(--signal);border-color:var(--signal)}
+  .rte-toolbar{display:flex;align-items:center;gap:2px;padding:5px 6px;border-bottom:1px solid var(--line);background:var(--paper-2);flex-wrap:wrap}
+  .rte-btn{border:1px solid transparent;background:transparent;border-radius:6px;min-width:26px;height:26px;padding:0 6px;font-size:12.5px;line-height:1;cursor:pointer;color:var(--ink)}
+  .rte-btn:hover{background:var(--paper);border-color:var(--line)}
+  .rte-sep{width:1px;height:16px;background:var(--line);margin:0 4px}
+  .rte-body{padding:10px 12px;font-family:var(--sans);font-size:14px;color:var(--ink);line-height:1.5;min-height:100px;max-height:360px;overflow:auto;outline:none;white-space:pre-wrap}
+  .rte-body:empty:before{content:attr(data-placeholder);color:var(--muted)}
+  .rte-body ul,.rte-body ol{margin:0 0 8px 22px;padding:0}
+  .rte-body p{margin:0 0 8px}
   label.fld{display:block;margin-bottom:14px} label.fld .lab{display:block;font-size:12.5px;font-weight:600;margin-bottom:6px} label.fld .hint{font-weight:400;color:var(--muted)}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px} .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
   .jobs{border-top:1px solid var(--line)}
@@ -800,7 +810,17 @@ async function api(path,{method='GET',body,form,auth=true}={}){
     throw new Error('Session expired — please log in again');
   }
   const data=await res.json().catch(()=>null);
-  if(!res.ok){ const m=(data&&data.detail)||(Array.isArray(data)&&data[0]&&data[0].msg)||('Request failed ('+res.status+')'); const err=new Error(typeof m==='string'?m:'Request failed'); err.status=res.status; throw err; }
+  if(!res.ok){
+    // FastAPI validation errors put a LIST of {msg,loc,...} objects in
+    // .detail, not a string -- without unpacking that, a real validation
+    // reason (e.g. "answer1_text: at most 1600 characters") silently
+    // collapsed into a bare, useless "Request failed" toast.
+    let m=data&&data.detail;
+    if(Array.isArray(m)) m=m.map(x=>(x&&x.msg)||'').filter(Boolean).join('; ')||null;
+    else if(Array.isArray(data)&&data[0]&&data[0].msg) m=data[0].msg;
+    if(!m||typeof m!=='string') m='Request failed ('+res.status+')';
+    const err=new Error(m); err.status=res.status; throw err;
+  }
   return data;
 }
 async function apiUpload(path,file){ const fd=new FormData(); fd.append('file',file); return api(path,{method:'POST',form:fd}); }
@@ -1911,7 +1931,17 @@ function parseSkillsField(raw){
   if(!raw) return [];
   try{ const p=JSON.parse(raw); if(Array.isArray(p)) return p.map(s=>String(s).trim()).filter(Boolean); }
   catch(e){}
-  return String(raw).split(',').map(s=>s.trim()).filter(Boolean);
+  let s=String(raw).trim();
+  if(s.startsWith('[')&&s.endsWith(']')){
+    // Looks like a JSON array but JSON.parse still threw (smart quotes, a
+    // trailing comma, or some other manual edit) -- strip the brackets and
+    // per-item quote characters instead of showing raw ["Item","Item"]
+    // punctuation to the user.
+    return s.slice(1,-1).split(',')
+      .map(x=>x.trim().replace(/^["'“‘]+|["'”’]+$/g,'').trim())
+      .filter(Boolean);
+  }
+  return s.split(',').map(x=>x.trim()).filter(Boolean);
 }
 function jobRow(j,preview){
   const skills=parseSkillsField(j.required_skills).slice(0,5);
@@ -1942,7 +1972,7 @@ function previewJobModal(id){
       <span class="chip">Posted ${fmtDate(j.created_at)}</span>
     </div>
     ${skills.length?`<div class="skills" style="margin:10px 0">${skills.slice(0,8).map(s=>`<span class="skill">${esc(s)}</span>`).join('')}</div>`:''}
-    ${desc?`<p class="prose" style="margin-top:10px;max-height:220px;overflow:auto;white-space:pre-wrap">${esc(desc.slice(0,700))}${desc.length>700?'…':''}</p>`:''}
+    ${desc?`<div class="prose" style="margin-top:10px;max-height:220px;overflow:auto">${_richHtmlSafe(desc)}</div>`:''}
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
       <button class="btn ghost" onclick="closeModal()">← Back</button>
       <button class="btn signal" onclick="closeModal();go('job',{id:${j.id}})">View full role & apply</button>
@@ -1977,8 +2007,8 @@ async function ViewJob(){
       <div class="jmeta">${pay?`<span class="pay">${pay}</span>`:''}<span>${detailTerms}</span></div></div>
       ${skills.length?`<div class="skills" style="margin-bottom:18px">${skills.map(s=>`<span class="skill">${esc(s)}</span>`).join('')}</div>`:''}
       <div class="jmeta" style="margin-bottom:14px"><span class="chip">${scopeLabel(j)}</span>${j.visa_sponsorship?'<span class="chip" style="color:var(--signal)">Visa sponsorship</span>':''}</div>
-      <div class="prose">${esc(j.description)}</div>
-      ${j.benefits?`<h3 style="font-size:15px;margin:20px 0 8px">Benefits</h3><div class="prose">${esc(j.benefits)}</div>`:''}
+      <div class="prose">${_richHtmlSafe(j.description)}</div>
+      ${j.benefits?`<h3 style="font-size:15px;margin:20px 0 8px">Benefits</h3><div class="prose">${_richHtmlSafe(j.benefits)}</div>`:''}
       <div class="qcard" style="margin-top:20px"><div class="qn">Screening</div>You'll answer a few short screening questions after you start your application.</div>
     </article><div>${panel}</div></div>
   </div></main>`;
@@ -2022,13 +2052,28 @@ function stepCV(){
       <button class="btn signal" onclick="applyNext()">Continue →</button></div>`;
 }
 function applyPickCV(e){ applyState.cvFile=e.target.files[0]||null; $('#applystep').innerHTML=applyStep(); }
+const WORD_CAP=250;
+function _wordCapCount(text){ return (text.trim().match(/\S+/g)||[]).length; }
+function _wordCap(el,max){
+  max=max||WORD_CAP;
+  const words=el.value.trim().match(/\S+/g)||[];
+  if(words.length>max){
+    const pos=el.selectionStart;
+    el.value=words.slice(0,max).join(' ');
+    if(pos!=null) el.setSelectionRange(el.value.length,el.value.length);
+  }
+  const n=Math.min(words.length,max);
+  const c=(el.nextElementSibling&&el.nextElementSibling.classList.contains('wordcap'))?el.nextElementSibling:(el.parentElement&&el.parentElement.querySelector('.wordcap'));
+  if(c){ c.textContent=n+' / '+max+' words'; c.style.color=n>=max?'var(--stop)':'var(--muted)'; }
+}
 function stepQuestions(j){
   const qs=[1,2,3,4,5].filter(n=>n===1||j['question'+n]);
   return `<div class="eyebrow" style="margin-bottom:8px">Step 2 of 4 · Screening questions</div>
     <p style="color:var(--muted);font-size:13.5px;margin:0 0 12px">Your answers are scored and ranked.</p>
     <div class="q-scroll">
       ${qs.map(n=>`<label class="fld"><span class="lab">${esc(j['question'+n])}</span>
-        <textarea class="textarea" id="a${n}" placeholder="Your answer…">${esc(applyState.answers['a'+n]||'')}</textarea></label>`).join('')}
+        <textarea class="textarea" id="a${n}" placeholder="Your answer…" oninput="_wordCap(this)">${esc(applyState.answers['a'+n]||'')}</textarea>
+        <span class="hint wordcap" style="display:block;text-align:right;margin-top:4px;font-size:11.5px">${_wordCapCount(applyState.answers['a'+n]||'')} / ${WORD_CAP} words</span></label>`).join('')}
     </div>
     <div class="apply-nav"><button class="btn ghost" onclick="applyBack()">← Back</button><button class="btn ghost" onclick="saveApplicationDraft()">Save draft</button>
       <button class="btn signal" onclick="applyNext()">Continue →</button></div>`;
@@ -2049,7 +2094,8 @@ async function applyPickVideo(e){
   applyState.videoFile=f; $('#applystep').innerHTML=applyStep();
 }
 function stepReview(j){
-  const a=applyState.answers, ans1=(a.a1||'').trim();
+  const a=applyState.answers;
+  const qs=[1,2,3,4,5].filter(n=>n===1||j['question'+n]);
   const wp=(j.remote_scope&&j.remote_scope!=='anywhere'&&j.remote_countries)?`
     <div class="card" style="background:rgba(198,162,74,0.10);margin:12px 0">
       <p style="font-size:13.5px;margin:0 0 10px"><strong>This role requires the right to work in ${esc(j.remote_countries)}.</strong>${j.visa_sponsorship?' The employer may offer visa sponsorship.':''}</p>
@@ -2058,10 +2104,14 @@ function stepReview(j){
       <p class="sub" style="margin:10px 0 0">If not, you can still apply. We may be able to connect you through an EOR or contractor arrangement.</p>
     </div>`:'';
   return `<div class="eyebrow" style="margin-bottom:8px">Step 4 of 4 · Review & submit</div>
-    <div style="font-size:13.5px;line-height:1.7;margin-bottom:8px">
-      <div><strong>First answer:</strong> ${ans1?esc(ans1.slice(0,120))+(ans1.length>120?'…':''):'<span style="color:var(--stop)">not answered</span>'}</div>
-      <div><strong>CV file:</strong> ${applyState.cvFile?esc(applyState.cvFile.name):'none (using your profile)'}</div>
-      <div><strong>Video:</strong> ${applyState.videoFile?esc(applyState.videoFile.name):'none'}</div>
+    <div class="q-scroll" style="font-size:13.5px;line-height:1.6">
+      ${qs.map(n=>{const ans=(a['a'+n]||'').trim();
+        return `<div style="margin-bottom:14px"><div style="color:var(--muted);font-size:12px;margin-bottom:3px">${esc(j['question'+n])}</div>
+          <div style="white-space:pre-wrap">${ans?esc(ans):'<span style="color:var(--stop)">not answered</span>'}</div></div>`;}).join('')}
+      <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:4px">
+        <div><strong>CV file:</strong> ${applyState.cvFile?esc(applyState.cvFile.name):'none (using your profile)'}</div>
+        <div><strong>Video:</strong> ${applyState.videoFile?esc(applyState.videoFile.name):'none'}</div>
+      </div>
     </div>
     ${wp}
     <div class="apply-nav"><button class="btn ghost" onclick="applyBack()">← Back</button><button class="btn ghost" onclick="saveApplicationDraft()">Save draft</button>
@@ -2373,12 +2423,12 @@ function ViewContact(){
       <div id="enqerr" style="color:var(--stop);font-size:13px;margin-bottom:10px;display:none"></div>
       <label class="fld"><span class="lab">Your email</span><input class="input" id="eemail" type="email" value="${esc(u?u.email:'')}"/></label>
       <label class="fld"><span class="lab">Subject</span><input class="input" id="esubj" value="${esc((state.params&&state.params.subject)||'')}"/></label>
-      <label class="fld"><span class="lab">Message</span><textarea class="textarea" id="ebody"></textarea></label>
+      <label class="fld"><span class="lab">Message</span>${richBox('ebody','')}</label>
       <button class="btn signal" id="enqbtn" style="width:100%" onclick="submitEnquiry()">Send enquiry</button>
     </div></div></main>`;
 }
 async function submitEnquiry(){
-  const from_email=$('#eemail').value.trim().toLowerCase(),subject=$('#esubj').value.trim(),body=$('#ebody').value.trim();
+  const from_email=$('#eemail').value.trim().toLowerCase(),subject=$('#esubj').value.trim(),body=await richValueSanitized('ebody');
   const emailok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from_email);
   if(!emailok){const e=$('#enqerr');e.textContent='Invalid email format.';e.style.display='block';return;}
   if(subject.length<3||body.length<3){const e=$('#enqerr');e.textContent='Please add a subject and a message.';e.style.display='block';return;}
@@ -2574,6 +2624,56 @@ async function _sanitizeCvHtml(html){
   await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.14/purify.min.js');
   return window.DOMPurify.sanitize(html||'', CV_PREVIEW_SANITIZE_CFG);
 }
+
+/* Rich-text boxes (job description/benefits, profile about/responsibilities,
+   composed messages/letters) — a contentEditable div with a small formatting
+   toolbar in place of a plain <textarea>. Tighter allowlist than CV preview:
+   no links/images/tables, since this is short-form authored content, not a
+   parsed document. Preloaded eagerly (fire-and-forget, below) so it's ready
+   by the time any view actually renders one of these boxes; _richHtmlSafe
+   fails CLOSED (escapes instead of injecting raw HTML) on the rare chance a
+   box renders before the script finishes loading. */
+const RICH_TEXT_SANITIZE_CFG={ALLOWED_TAGS:['div','p','br','strong','b','em','i','u','ul','ol','li'],ALLOWED_ATTR:[]};
+const DOMPURIFY_SRC='https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.14/purify.min.js';
+_loadScriptOnce(DOMPURIFY_SRC).catch(()=>{});
+function _richHtmlSafe(raw){
+  raw=raw||'';
+  if(window.DOMPurify) return window.DOMPurify.sanitize(raw,RICH_TEXT_SANITIZE_CFG);
+  return esc(raw).replace(/\n/g,'<br>');
+}
+function richBox(id,raw,opts){
+  opts=opts||{};
+  const minH=opts.minHeight||'100px', ph=opts.placeholder||'';
+  return `<div class="rte">
+    <div class="rte-toolbar" role="toolbar" aria-label="Formatting">
+      <button type="button" class="rte-btn" tabindex="-1" title="Bold" onmousedown="event.preventDefault()" onclick="_rteCmd('${id}','bold')"><b>B</b></button>
+      <button type="button" class="rte-btn" tabindex="-1" title="Italic" onmousedown="event.preventDefault()" onclick="_rteCmd('${id}','italic')"><i>I</i></button>
+      <button type="button" class="rte-btn" tabindex="-1" title="Underline" onmousedown="event.preventDefault()" onclick="_rteCmd('${id}','underline')"><u>U</u></button>
+      <span class="rte-sep"></span>
+      <button type="button" class="rte-btn" tabindex="-1" title="Numbered list" onmousedown="event.preventDefault()" onclick="_rteCmd('${id}','insertOrderedList')">1.</button>
+      <button type="button" class="rte-btn" tabindex="-1" title="Bulleted list" onmousedown="event.preventDefault()" onclick="_rteCmd('${id}','insertUnorderedList')">•</button>
+      <span class="rte-sep"></span>
+      <button type="button" class="rte-btn" tabindex="-1" title="Clear formatting" onmousedown="event.preventDefault()" onclick="_rteCmd('${id}','removeFormat')">Clear</button>
+    </div>
+    <div class="rte-body" id="${id}" contenteditable="true" data-placeholder="${esc(ph)}" style="min-height:${minH}">${_richHtmlSafe(raw)}</div>
+  </div>`;
+}
+function _rteCmd(id,cmd){
+  const el=document.getElementById(id); if(!el) return;
+  el.focus();
+  document.execCommand(cmd,false,null);
+}
+function richValue(id){
+  const el=document.getElementById(id);
+  return el?el.innerHTML.trim():'';
+}
+function richSetValue(id,rawText){
+  const el=document.getElementById(id); if(el) el.innerHTML=_richHtmlSafe(rawText);
+}
+async function richValueSanitized(id){
+  await _loadScriptOnce(DOMPURIFY_SRC).catch(()=>{});
+  return _richHtmlSafe(richValue(id));
+}
 async function ViewCvPreview(){
   if(!store.user||store.user.role!=='candidate'){go('board');return '';}
   try{
@@ -2644,13 +2744,13 @@ function candidateFields(me){
   if(!Array.isArray(_profileTags.languages))_profileTags.languages=[];
   return `<label class="fld"><span class="lab">Full name</span><input class="input" id="p_name" value="${esc(me.full_name||'')}"/></label>
     <label class="fld"><span class="lab">Headline</span><input class="input" id="p_headline" placeholder="e.g. Senior Backend Engineer" value="${esc(me.headline||'')}"/></label>
-    <label class="fld"><span class="lab">About</span><textarea class="textarea" id="p_about" placeholder="A short summary of your experience.">${esc(me.about||'')}</textarea></label>
+    <label class="fld"><span class="lab">About</span>${richBox('p_about',me.about||'',{placeholder:'A short summary of your experience.'})}</label>
     ${categoryPicker('categories','Job categories')}
     <div class="row2">${tagPicker('skills','Skills')} ${tagPicker('tools','Tools')}</div>
     <div class="row2"><label class="fld"><span class="lab">Other skills <span class="hint">(optional, read by our AI)</span></span><input class="input" id="p_other_skills" placeholder="e.g. Stakeholder management, public speaking" value="${esc(me.candidate_other_skills||'')}"/></label><label class="fld"><span class="lab">Other tools <span class="hint">(optional, read by our AI)</span></span><input class="input" id="p_other_tools" placeholder="e.g. Zendesk plugin, internal CRM" value="${esc(me.candidate_other_tools||'')}"/></label></div>
     <div class="fld"><span class="lab">Work experience</span>
       <div id="wexp_list">${renderWexp(me.work_experience)}</div>
-      <label class="fld"><span class="lab">Responsibilities</span><textarea class="textarea" id="p_resp" placeholder="Describe your key responsibilities.">${esc(me.responsibilities||'')}</textarea></label>
+      <label class="fld"><span class="lab">Responsibilities</span>${richBox('p_resp',me.responsibilities||'',{placeholder:'Describe your key responsibilities.'})}</label>
       <button type="button" class="btn ghost sm wexp-add" onclick="addWexp()">+ Add experience</button>
     </div>
     <div class="row2">
@@ -2710,7 +2810,7 @@ function employerFields(me){
   return `<label class="fld"><span class="lab">Contact name</span><input class="input" id="p_name" value="${esc(me.full_name||'')}"/></label>
     <label class="fld"><span class="lab">Company name</span><input class="input" id="p_company" value="${esc(me.company_name||'')}"/></label>
     <label class="fld"><span class="lab">Company website</span><input class="input" id="p_web" placeholder="https://" value="${esc(me.company_website||'')}"/></label>
-    <label class="fld"><span class="lab">About the company</span><textarea class="textarea" id="p_about">${esc(me.about||'')}</textarea></label>
+    <label class="fld"><span class="lab">About the company</span>${richBox('p_about',me.about||'')}</label>
     <div class="row2">${tagPicker('emp_skills','Skills you hire for')} ${tagPicker('emp_tools','Tools you hire for')}</div>
     <span class="hint" style="display:block;margin:-8px 0 14px">These pre-fill "Required skills" whenever you post a job.</span>`;
 }
@@ -2725,8 +2825,8 @@ function docSlot(label,have,kind,accept){
 }
 async function saveProfile(isEmp){
   const body={full_name:$('#p_name').value.trim()};
-  if(isEmp){body.company_name=$('#p_company').value.trim();body.company_website=$('#p_web').value.trim();body.about=$('#p_about').value.trim();body.employer_skills=JSON.stringify(_profileTags.emp_skills||[]);body.employer_tools=JSON.stringify(_profileTags.emp_tools||[]);}
-  else{body.headline=$('#p_headline').value.trim();body.about=$('#p_about').value.trim();body.responsibilities=$('#p_resp').value.trim();
+  if(isEmp){body.company_name=$('#p_company').value.trim();body.company_website=$('#p_web').value.trim();body.about=await richValueSanitized('p_about');body.employer_skills=JSON.stringify(_profileTags.emp_skills||[]);body.employer_tools=JSON.stringify(_profileTags.emp_tools||[]);}
+  else{body.headline=$('#p_headline').value.trim();body.about=await richValueSanitized('p_about');body.responsibilities=await richValueSanitized('p_resp');
     const mn=$('#p_paymin').value,mx=$('#p_paymax').value;
     if(mn)body.pay_target_min=parseInt(mn);if(mx)body.pay_target_max=parseInt(mx);
     body.pay_currency=$('#p_cur').value.trim()||'USD';body.pay_period=$('#p_period').value;
@@ -2928,11 +3028,11 @@ async function openMyPahDetail(pipelineId){
   catch(e){ toast(e.message,true); return; }
   let extra='';
   if(c.stage==='interview_scheduled'&&c.interview){
-    extra=`<div class="card" style="margin:0 0 14px"><b>Interview scheduled</b><div style="font-size:13px;color:var(--muted);margin-top:6px">${fmtDateTime(c.interview.time)}<br><a href="${esc(c.interview.link)}" target="_blank" rel="noopener" style="color:var(--signal)">${esc(c.interview.link)}</a>${c.interview.message?'<br>"'+esc(c.interview.message)+'"':''}</div></div>`;
+    extra=`<div class="card" style="margin:0 0 14px"><b>Interview scheduled</b><div style="font-size:13px;color:var(--muted);margin-top:6px">${fmtDateTime(c.interview.time)}<br><a href="${esc(c.interview.link)}" target="_blank" rel="noopener" style="color:var(--signal)">${esc(c.interview.link)}</a>${c.interview.message?`<div style="margin-top:4px">${_richHtmlSafe(c.interview.message)}</div>`:''}</div></div>`;
   } else if(c.stage==='offered'&&c.offer){
-    extra=`<div class="card" style="margin:0 0 14px"><b>Offer letter</b><p style="font-size:13px;color:var(--muted);white-space:pre-wrap;margin:8px 0 0">${esc(c.offer.letter)}</p></div>`;
+    extra=`<div class="card" style="margin:0 0 14px"><b>Offer letter</b><div class="prose" style="font-size:13px;color:var(--muted);margin:8px 0 0">${_richHtmlSafe(c.offer.letter)}</div></div>`;
   } else if(c.stage==='rejected'&&c.rejection){
-    extra=`<div class="card" style="margin:0 0 14px;background:#fbeaea"><b>Not moving forward</b><p style="font-size:13px;color:#7a2020;margin:6px 0 0">${esc(c.rejection.reason)}</p></div>`;
+    extra=`<div class="card" style="margin:0 0 14px;background:#fbeaea"><b>Not moving forward</b><div class="prose" style="font-size:13px;color:#7a2020;margin:6px 0 0">${_richHtmlSafe(c.rejection.reason)}</div></div>`;
   } else if(c.stage==='hired'){
     extra=`<div class="card" style="margin:0 0 14px;background:#eef4f0"><b>Congratulations — you're hired!</b>${c.guarantee_expires_at?`<div style="font-size:12px;color:var(--muted);margin-top:6px">Guarantee window active until ${fmtDate(c.guarantee_expires_at)}.</div>`:''}</div>`;
   }
@@ -3020,7 +3120,7 @@ function trackRow(a,title){
       <div class="step ${reviewed?'done':''}"><span class="node"></span><span class="lbl">Reviewed</span></div>
       <span class="conn" style="background:${decided?(a.status==='shortlisted'?'var(--go)':'var(--stop)'):'var(--line)'}"></span>
       <div class="step ${decided?dc:''}"><span class="node"></span><span class="lbl">${dl}</span></div></div>
-    ${a.employer_feedback?`<div class="fb"><div class="fl">Message from the employer</div>${esc(a.employer_feedback)}</div>`:''}
+    ${a.employer_feedback?`<div class="fb"><div class="fl">Message from the employer</div><div style="white-space:pre-wrap">${_richHtmlSafe(a.employer_feedback)}</div></div>`:''}
     ${canWithdraw?`<button class="btn ghost sm" style="margin-top:8px" onclick="withdrawApp(${a.id})">Withdraw</button>`:''}</div>
     <div style="text-align:right"><span class="status st-${a.status}"><span class="dot"></span>${a.status}</span><div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Applied ${fmtDate(a.created_at)}</div></div></div>`;
 }
@@ -3155,7 +3255,7 @@ function empJobRow(j,i){const pay=formatPay(j);const sn=(i!=null)?(i+1)+'. ':'';
   const titleArg=JSON.stringify(String(j.title||'')).replace(/'/g,'&#39;');
   const actions = j.archived
     ? `<button class="btn ghost sm" onclick='openShortlist(${j.id},${titleArg})'>View shortlist →</button><button class="btn ghost sm" onclick="restoreJob(${j.id})">Restore</button>`
-    : `<button class="btn ghost sm" onclick='openShortlist(${j.id},${titleArg})'>View shortlist →</button><button class="btn ghost sm" onclick="editJob(${j.id})">Edit</button>${openNow?`<button class="btn ghost sm" onclick="closeJob(${j.id})">Close</button>`:`<button class="btn ghost sm" onclick="reopenJob(${j.id})">Reopen</button>`}<button class="btn ghost sm" onclick="archiveJob(${j.id})">Delete</button>`;
+    : `<button class="btn ghost sm" onclick='openShortlist(${j.id},${titleArg})'>View shortlist →</button><button class="btn ghost sm" onclick="editJob(${j.id})">Edit</button>${openNow?`<button class="btn danger sm" onclick="closeJob(${j.id})">Close</button>`:`<button class="btn ghost sm" onclick="reopenJob(${j.id})">Reopen</button>`}<button class="btn danger sm" onclick="archiveJob(${j.id})">Delete</button>`;
   return `<div class="job" style="cursor:default"><div onclick='openShortlist(${j.id},${titleArg})' style="cursor:pointer">
     <div class="jt">${sn}${esc(j.title)}</div><div class="jmeta">${pay?`<span class="pay">${pay}</span>`:''}<span>${terms}</span>${badge}${closeInfo}</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${actions}</div></div>`;
@@ -3266,11 +3366,11 @@ async function openPahCandidate(pipelineId,ref,score){
   catch(e){ toast(e.message,true); return; }
   let extra='';
   if(c.stage==='interview_scheduled'&&c.interview){
-    extra=`<div class="card" style="margin:0 0 14px"><b>Interview scheduled</b><div style="font-size:13px;color:var(--muted);margin-top:6px">${fmtDateTime(c.interview.time)}<br>${esc(c.interview.link)}<br>${c.interview.message?'"'+esc(c.interview.message)+'"':''}</div></div>`;
+    extra=`<div class="card" style="margin:0 0 14px"><b>Interview scheduled</b><div style="font-size:13px;color:var(--muted);margin-top:6px">${fmtDateTime(c.interview.time)}<br>${esc(c.interview.link)}${c.interview.message?`<div style="margin-top:4px">${_richHtmlSafe(c.interview.message)}</div>`:''}</div></div>`;
   } else if(c.stage==='offered'&&c.offer){
-    extra=`<div class="card" style="margin:0 0 14px"><b>Offer sent</b><p style="font-size:13px;color:var(--muted);white-space:pre-wrap;margin:6px 0 0">${esc(c.offer.letter)}</p><div style="font-size:12px;color:var(--muted);margin-top:8px">Awaiting the candidate's response.</div></div>`;
+    extra=`<div class="card" style="margin:0 0 14px"><b>Offer sent</b><div class="prose" style="font-size:13px;color:var(--muted);margin:6px 0 0">${_richHtmlSafe(c.offer.letter)}</div><div style="font-size:12px;color:var(--muted);margin-top:8px">Awaiting the candidate's response.</div></div>`;
   } else if(c.stage==='rejected'&&c.rejection){
-    extra=`<div class="card" style="margin:0 0 14px;background:#fbeaea"><b>Rejected — ${c.rejection.stage==='forwarded'?'before interview':'after interview'}</b><p style="font-size:13px;color:#7a2020;margin:6px 0 0">${esc(c.rejection.reason)}</p></div>`;
+    extra=`<div class="card" style="margin:0 0 14px;background:#fbeaea"><b>Rejected — ${c.rejection.stage==='forwarded'?'before interview':'after interview'}</b><div class="prose" style="font-size:13px;color:#7a2020;margin:6px 0 0">${_richHtmlSafe(c.rejection.reason)}</div></div>`;
   } else if(c.stage==='hired'&&c.contact){
     extra=`<div class="card" style="margin:0 0 14px;background:#eef4f0"><b>Contact unlocked</b><div style="font-size:13px;margin-top:6px">${esc(c.contact.name)} · ${esc(c.contact.email)}</div>${c.guarantee_expires_at?`<div style="font-size:12px;color:var(--muted);margin-top:6px">Replacement guarantee active until ${fmtDate(c.guarantee_expires_at)}</div>`:''}</div>`;
   }
@@ -3294,12 +3394,12 @@ function pahScheduleModal(pipelineId){
     <div id="pahiverr" style="color:var(--stop);font-size:13px;margin-bottom:10px;display:none"></div>
     <label class="fld"><span class="lab">Interview link</span><input class="input" id="pahivlink" placeholder="https://meet.google.com/…"/></label>
     <label class="fld"><span class="lab">Date &amp; time</span><input class="input" id="pahivtime" type="datetime-local"/></label>
-    <label class="fld"><span class="lab">Message</span><textarea class="textarea" id="pahivmsg" placeholder="Looking forward to speaking with you…"></textarea></label>
+    <label class="fld"><span class="lab">Message</span>${richBox('pahivmsg','',{placeholder:'Looking forward to speaking with you…'})}</label>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost" onclick="openPahCandidate(${pipelineId},'',null)">Cancel</button><button class="btn signal" id="pahivbtn" onclick="submitPahSchedule(${pipelineId})">Send invite</button></div>
   </div></div>`;
 }
 async function submitPahSchedule(pipelineId){
-  const link=$('#pahivlink').value.trim(), time=$('#pahivtime').value, message=$('#pahivmsg').value.trim();
+  const link=$('#pahivlink').value.trim(), time=$('#pahivtime').value, message=await richValueSanitized('pahivmsg');
   const err=m=>{const el=$('#pahiverr');el.textContent=m;el.style.display='block';};
   if(!link||!time) return err('Add the interview link and a date/time.');
   const b=$('#pahivbtn'); b.disabled=true; b.innerHTML='<span class="spin"></span>';
@@ -3311,12 +3411,12 @@ function pahRegetModal(pipelineId){
     <h3 style="font-size:17px;margin-bottom:8px">Reget this candidate</h3>
     <p style="color:var(--muted);font-size:13px;margin:0 0 14px">Removes them from your active shortlist. A reason is required.</p>
     <div id="pahrgerr" style="color:var(--stop);font-size:13px;margin-bottom:10px;display:none"></div>
-    <label class="fld"><span class="lab">Reason</span><textarea class="textarea" id="pahrgreason" placeholder="Not the right fit because…"></textarea></label>
+    <label class="fld"><span class="lab">Reason</span>${richBox('pahrgreason','',{placeholder:'Not the right fit because…'})}</label>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost" onclick="openPahCandidate(${pipelineId},'',null)">Cancel</button><button class="btn stop" id="pahrgbtn" onclick="submitPahReget(${pipelineId})">Confirm reget</button></div>
   </div></div>`;
 }
 async function submitPahReget(pipelineId){
-  const reason=$('#pahrgreason').value.trim();
+  const reason=await richValueSanitized('pahrgreason');
   if(reason.length<3){ const el=$('#pahrgerr'); el.textContent='Please give a reason.'; el.style.display='block'; return; }
   const b=$('#pahrgbtn'); b.disabled=true; b.innerHTML='<span class="spin"></span>';
   try{ await api('/pah/candidates/'+pipelineId+'/reget',{method:'POST',body:{reason}}); closeModal(); toast('Candidate regetted'); render(); }
@@ -3327,12 +3427,12 @@ function pahRejectModal(pipelineId){
     <h3 style="font-size:17px;margin-bottom:8px">Reject candidate</h3>
     <p style="color:var(--muted);font-size:13px;margin:0 0 14px">Logged against this candidate. A reason is required.</p>
     <div id="pahrjerr" style="color:var(--stop);font-size:13px;margin-bottom:10px;display:none"></div>
-    <label class="fld"><span class="lab">Reason</span><textarea class="textarea" id="pahrjreason" placeholder="After the interview, we felt…"></textarea></label>
+    <label class="fld"><span class="lab">Reason</span>${richBox('pahrjreason','',{placeholder:'After the interview, we felt…'})}</label>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost" onclick="openPahCandidate(${pipelineId},'',null)">Cancel</button><button class="btn stop" id="pahrjbtn" onclick="submitPahReject(${pipelineId})">Confirm reject</button></div>
   </div></div>`;
 }
 async function submitPahReject(pipelineId){
-  const reason=$('#pahrjreason').value.trim();
+  const reason=await richValueSanitized('pahrjreason');
   if(reason.length<3){ const el=$('#pahrjerr'); el.textContent='Please give a reason.'; el.style.display='block'; return; }
   const b=$('#pahrjbtn'); b.disabled=true; b.innerHTML='<span class="spin"></span>';
   try{ await api('/pah/candidates/'+pipelineId+'/reject',{method:'POST',body:{reason}}); closeModal(); toast('Candidate rejected'); render(); }
@@ -3347,12 +3447,12 @@ function pahOfferModal(pipelineId){
     <h3 style="font-size:17px;margin-bottom:8px">Send offer</h3>
     <p style="color:var(--muted);font-size:13px;margin:0 0 14px">Write or paste the offer letter. It's delivered to the candidate through the platform.</p>
     <div id="pahofferr" style="color:var(--stop);font-size:13px;margin-bottom:10px;display:none"></div>
-    <label class="fld"><span class="lab">Offer letter</span><textarea class="textarea" id="pahoffertext" style="min-height:140px" placeholder="Dear [Candidate], we are pleased to offer you…"></textarea></label>
+    <label class="fld"><span class="lab">Offer letter</span>${richBox('pahoffertext','',{minHeight:'140px',placeholder:'Dear [Candidate], we are pleased to offer you…'})}</label>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost" onclick="openPahCandidate(${pipelineId},'',null)">Cancel</button><button class="btn signal" id="pahoffbtn" onclick="submitPahOffer(${pipelineId})">Send offer</button></div>
   </div></div>`;
 }
 async function submitPahOffer(pipelineId){
-  const letter_text=$('#pahoffertext').value.trim();
+  const letter_text=await richValueSanitized('pahoffertext');
   if(letter_text.length<10){ const el=$('#pahofferr'); el.textContent='Write the offer letter first.'; el.style.display='block'; return; }
   const b=$('#pahoffbtn'); b.disabled=true; b.innerHTML='<span class="spin"></span>';
   try{ await api('/pah/candidates/'+pipelineId+'/offer',{method:'POST',body:{letter_text}}); closeModal(); toast('Offer sent'); render(); }
@@ -3432,6 +3532,7 @@ function ViewPostJob(){
   const _isStaffPoster=store.user.role!=='employer';
   const savedDraft=!_editJob?loadDraft('job','current'):null;
   const e=_editJob||savedDraft; const v=(x)=>e&&e[x]!=null?esc(String(e[x])):'';
+  const raw=(x)=>e&&e[x]!=null?String(e[x]):'';
   // required_skills predates this session and has always been stored as a
   // plain comma-separated string (never JSON) — unlike required_tools below,
   // which was built fresh as JSON from the start. JSON.parse would throw and
@@ -3439,8 +3540,7 @@ function ViewPostJob(){
   // comma-split for anything that isn't valid JSON, rather than treating a
   // parse failure as "no skills".
   if(e&&e.required_skills){
-    try{ const p=JSON.parse(e.required_skills); _profileTags.job_skills=Array.isArray(p)?p:[]; }
-    catch(err){ _profileTags.job_skills=e.required_skills.split(',').map(s=>s.trim()).filter(Boolean); }
+    _profileTags.job_skills=parseSkillsField(e.required_skills);
   } else if(!e && store.user.employer_skills){
     try{ const p=JSON.parse(store.user.employer_skills); _profileTags.job_skills=Array.isArray(p)?p:[]; }
     catch(err){ _profileTags.job_skills=[]; }
@@ -3469,7 +3569,7 @@ function ViewPostJob(){
           <p style="color:var(--muted);font-size:12.5px;margin:4px 0 0">You'll review and sign the Pay-As-You-Hire contract right after posting.</p>
         </div>`:''}
       <label class="fld"><span class="lab">Title</span><input class="input" id="jtitle" value="${v('title')}" placeholder="Senior Backend Engineer (Python)"/></label>
-      <label class="fld"><span class="lab">Description</span><textarea class="textarea" id="jdesc" style="min-height:130px">${v('description')}</textarea></label>
+      <label class="fld"><span class="lab">Description</span>${richBox('jdesc',raw('description'),{minHeight:'130px'})}</label>
       <div style="border-top:1px solid var(--line);margin:18px 0 14px;padding-top:16px">
         <div class="eyebrow" style="margin-bottom:10px">What this role needs</div>
         ${tagPicker('job_skills','Required skills')}
@@ -3514,7 +3614,7 @@ function ViewPostJob(){
           </select></label>
         <label class="fld"><span class="lab">Country codes <span class="hint">(if restricted, e.g. US)</span></span><input class="input" id="jcountries" value="${v('remote_countries')}" placeholder="US"/></label>
       </div>
-      <label class="fld"><span class="lab">Benefits <span class="hint">(health, retirement, PTO, equity...)</span></span><textarea class="textarea" id="jbenefits" placeholder="Health insurance, 401(k) match, 20 days PTO, equity">${v('benefits')}</textarea></label>
+      <label class="fld"><span class="lab">Benefits <span class="hint">(health, retirement, PTO, equity...)</span></span>${richBox('jbenefits',raw('benefits'),{placeholder:'Health insurance, 401(k) match, 20 days PTO, equity'})}</label>
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:14px"><input type="checkbox" id="jvisa" ${e&&e.visa_sponsorship?'checked':''}/> Visa sponsorship available</label>
       <label class="fld"><span class="lab">Application notifications <span class="hint">(how often you're emailed about new applicants — change anytime)</span></span><select id="jnotifreq">${[['instant','Instant — an email per application'],['daily','Daily digest'],['weekly','Weekly digest'],['monthly','Monthly digest']].map(([val,label])=>`<option value="${val}"${(e&&e.notification_frequency===val)||(!e&&val==='instant')?' selected':''}>${label}</option>`).join('')}</select></label>
       <label class="fld"><span class="lab">Closing date <span class="hint">(optional — leave blank to stay open until you close it)</span></span><input class="input" id="jcloses" type="date" value="${cdv}"/></label>
@@ -3530,9 +3630,9 @@ function togglePahFields(){
   const checked=document.querySelector('input[name="jservtype"]:checked');
   const box=$('#jpahfields'); if(box) box.style.display=(checked&&checked.value==='pay_as_you_hire')?'block':'none';
 }
-function saveJobDraft(silent){
+async function saveJobDraft(silent){
   const val=id=>{const el=$(id);return el?el.value:'';};
-  const fields={title:val('#jtitle'),description:val('#jdesc'),required_skills:JSON.stringify(_profileTags.job_skills||[]),location:val('#jloc'),company_name:val('#jcompany'),category:val('#jcat'),level:val('#jlevel'),employment_type:val('#jtype'),pay_min:val('#jpmin'),pay_max:val('#jpmax'),currency:val('#jcur'),pay_period:val('#jperiod'),hours_per_week:val('#jhours'),timezone:val('#jtz'),remote_scope:val('#jscope'),remote_countries:val('#jcountries'),benefits:val('#jbenefits'),question1:val('#jq1'),question2:val('#jq2'),question3:val('#jq3'),question4:val('#jq4'),question5:val('#jq5'),closes_at:val('#jcloses'),visa_sponsorship:$('#jvisa')&&$('#jvisa').checked,
+  const fields={title:val('#jtitle'),description:await richValueSanitized('jdesc'),required_skills:JSON.stringify(_profileTags.job_skills||[]),location:val('#jloc'),company_name:val('#jcompany'),category:val('#jcat'),level:val('#jlevel'),employment_type:val('#jtype'),pay_min:val('#jpmin'),pay_max:val('#jpmax'),currency:val('#jcur'),pay_period:val('#jperiod'),hours_per_week:val('#jhours'),timezone:val('#jtz'),remote_scope:val('#jscope'),remote_countries:val('#jcountries'),benefits:await richValueSanitized('jbenefits'),question1:val('#jq1'),question2:val('#jq2'),question3:val('#jq3'),question4:val('#jq4'),question5:val('#jq5'),closes_at:val('#jcloses'),visa_sponsorship:$('#jvisa')&&$('#jvisa').checked,
     required_tools:JSON.stringify(_profileTags.job_tools||[]),other_required_skills:val('#jotherskills'),other_required_tools:val('#jothertools'),
     min_experience_range:val('#jminexp'),min_degree_level:val('#jmindeg'),required_languages:JSON.stringify(_profileTags.job_languages||[]),required_certifications:val('#jcerts'),
     notification_frequency:val('#jnotifreq')};
@@ -3548,7 +3648,7 @@ function subscribeToPostModal(){
 }
 async function submitJob(){
   const g=id=>$(id).value.trim();
-  const body={title:g('#jtitle'),description:g('#jdesc'),required_skills:JSON.stringify(_profileTags.job_skills||[]),location:g('#jloc')||'Remote',
+  const body={title:g('#jtitle'),description:await richValueSanitized('jdesc'),required_skills:JSON.stringify(_profileTags.job_skills||[]),location:g('#jloc')||'Remote',
     category:($('#jcat')?$('#jcat').value:''),
     level:($('#jlevel')?$('#jlevel').value:'')||null,
     employment_type:($('#jtype')?$('#jtype').value:'')||null,
@@ -3556,7 +3656,7 @@ async function submitJob(){
   const _co=$('#jcompany'); if(_co&&_co.value.trim())body.company_name=_co.value.trim();
   const pmin=g('#jpmin'),pmax=g('#jpmax'),hrs=g('#jhours'),tz=g('#jtz');
   body.remote_scope=$('#jscope').value; body.remote_countries=g('#jcountries');
-  body.benefits=g('#jbenefits'); body.visa_sponsorship=$('#jvisa').checked;
+  body.benefits=await richValueSanitized('jbenefits'); body.visa_sponsorship=$('#jvisa').checked;
   if(pmin)body.pay_min=parseInt(pmin); if(pmax)body.pay_max=parseInt(pmax); if(hrs)body.hours_per_week=parseInt(hrs); if(tz)body.timezone=tz;
   body.required_tools=JSON.stringify(_profileTags.job_tools||[]);
   body.other_required_skills=g('#jotherskills'); body.other_required_tools=g('#jothertools');
@@ -3588,7 +3688,7 @@ async function submitJob(){
     }
     toast('Job posted successfully'); go('employerJobs');
   }catch(e){
-    if(e.status===402 && !_editJob){ saveJobDraft(true); subscribeToPostModal(); b.disabled=false; b.textContent='Publish role'; return; }
+    if(e.status===402 && !_editJob){ await saveJobDraft(true); subscribeToPostModal(); b.disabled=false; b.textContent='Publish role'; return; }
     toast(e.message,true);b.disabled=false;b.textContent=_editJob?'Save changes':'Publish role';
   }
 }
@@ -3957,12 +4057,12 @@ function reviewPrompt(jobId,appId,status){
   $('#modal').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
     <h3 style="font-size:20px">${isS?'Shortlist this candidate':'Pass on this candidate'}</h3>
     <p style="color:var(--muted);font-size:13.5px;margin:8px 0 14px">They will be emailed automatically. A short note is the difference between a black hole and a real reply.</p>
-    <label class="fld"><span class="lab">Message <span class="hint">(optional)</span></span><textarea class="textarea" id="fbtext" placeholder="${isS?'We liked your answer on…':'Thanks for applying. We are moving ahead with closer matches this time.'}"></textarea></label>
+    <label class="fld"><span class="lab">Message <span class="hint">(optional)</span></span>${richBox('fbtext','',{placeholder:isS?'We liked your answer on…':'Thanks for applying. We are moving ahead with closer matches this time.'})}</label>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn ${isS?'signal':''}" id="revbtn" onclick="doReview(${jobId},${appId},'${status}')">${isS?'Shortlist & notify':'Pass & notify'}</button></div>
   </div></div>`;
 }
 async function doReview(jobId,appId,status){
-  const feedback=$('#fbtext').value.trim();const b=$('#revbtn');b.disabled=true;b.innerHTML='<span class="spin"></span>';
+  const feedback=await richValueSanitized('fbtext');const b=$('#revbtn');b.disabled=true;b.innerHTML='<span class="spin"></span>';
   try{await api('/jobs/'+jobId+'/applications/'+appId+'/review',{method:'PATCH',body:{status,feedback:feedback||null}});closeModal();toast(status==='shortlisted'?'Shortlisted — candidate notified':'Candidate notified');render();}
   catch(e){toast(e.message,true);b.disabled=false;b.textContent='Try again';}
 }
@@ -4182,7 +4282,7 @@ async function userProfile(id){
       <span class="chip">${u.has_passport?'ID on file ✓':'No ID'}</span>
     </div>
     ${u.headline?`<div style="margin:8px 0"><div class="lab">Headline</div><div>${esc(u.headline)}</div></div>`:''}
-    ${u.about?`<div style="margin:8px 0"><div class="lab">About</div><div>${esc(u.about)}</div></div>`:''}
+    ${u.about?`<div style="margin:8px 0"><div class="lab">About</div><div class="prose">${_richHtmlSafe(u.about)}</div></div>`:''}
     ${profileTagView('Skills',u.candidate_skills)}${profileTagView('Tools',u.candidate_tools)}${u.candidate_other_skills?`<div style="margin:10px 0"><div class="lab">Other skills</div><div>${esc(u.candidate_other_skills)}</div></div>`:''}${u.candidate_other_tools?`<div style="margin:10px 0"><div class="lab">Other tools</div><div>${esc(u.candidate_other_tools)}</div></div>`:''}${profileProjectsView(u.projects)}${u.intro_video_url?`<div style="margin:10px 0"><div class="lab">Video introduction</div><a href="${esc(u.intro_video_url)}" target="_blank" rel="noopener" style="color:var(--signal)">Watch video</a></div>`:''}
     ${u.company_website?`<div style="margin:8px 0"><div class="lab">Website</div><div>${esc(u.company_website)}</div></div>`:''}
     ${u.seniority?`<div style="margin:8px 0"><div class="lab">Level</div><div>${esc(u.seniority)}</div></div>`:''}
@@ -4216,12 +4316,12 @@ function msgUser(email,name){
     <div class="mono" style="font-size:12px;color:var(--muted);margin-bottom:12px">${esc(email)}</div>
     <div id="msgerr" style="color:var(--stop);font-size:13px;margin-bottom:8px;display:none"></div>
     <label class="fld"><span class="lab">Subject</span><input class="input" id="msgsubj"/></label>
-    <label class="fld"><span class="lab">Message</span><textarea class="textarea" id="msgbody" placeholder="Type your message…"></textarea></label>
+    <label class="fld"><span class="lab">Message</span>${richBox('msgbody','',{placeholder:'Type your message…'})}</label>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn signal" id="msgsend" onclick='sendMsgUser(${esc(JSON.stringify(email))})'>Send email</button></div>
   </div></div>`;
 }
 async function sendMsgUser(email){
-  const subject=($('#msgsubj')||{}).value||'', body=($('#msgbody')||{}).value||'';
+  const subject=($('#msgsubj')||{}).value||'', body=await richValueSanitized('msgbody');
   if(subject.trim().length<1||body.trim().length<1){ const e=$('#msgerr'); if(e){e.textContent='Add a subject and message.';e.style.display='block';} return; }
   const b=$('#msgsend'); if(b){b.disabled=true;b.innerHTML='<span class="spin"></span>';}
   try{ await api('/admin/mail',{method:'POST',body:{to_email:email,subject:subject.trim(),body:body.trim()}}); toast('Message sent'); closeModal(); }
@@ -4495,7 +4595,7 @@ async function applicantDetail(appId){
       ${a.in_top20?'<span class="chip">★ Top 20</span>':''}
       <span class="chip">Verification: ${cn.verification_status?vLabel(cn.verification_status):'—'}</span>
     </div>
-    ${cn.about?`<div style="margin:10px 0"><div class="lab">About</div><div>${esc(cn.about)}</div></div>`:''}
+    ${cn.about?`<div style="margin:10px 0"><div class="lab">About</div><div class="prose">${_richHtmlSafe(cn.about)}</div></div>`:''}
     ${(cn.pay_target_min||cn.pay_target_max)?`<div style="margin:10px 0"><div class="lab">Pay expectation</div><div>${cn.pay_target_min||''} ${cn.pay_target_max?('- '+cn.pay_target_max):''} ${esc(cn.pay_currency||'')}</div></div>`:''}
     <div style="display:flex;gap:10px;margin:8px 0">
       <span class="chip">${cn.has_cv?'CV uploaded':'No CV'}</span>
@@ -4567,7 +4667,7 @@ async function panelMailbox(){
           </label>`).join('')||'<span class="sub">No other staff found.</span>'}
         </div>
       </div>
-      <label class="fld"><span class="lab">Message</span><textarea class="textarea" id="mailboxBody" style="min-height:120px"></textarea></label>
+      <label class="fld"><span class="lab">Message</span>${richBox('mailboxBody','',{minHeight:'120px'})}</label>
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:14px"><input type="checkbox" id="mailboxAlsoEmail"/> Also send by email</label>
       <button class="btn signal" id="mailboxSendBtn" onclick="sendMailboxMessage()">Send</button>
     </div>`;
@@ -4582,14 +4682,14 @@ async function panelMailbox(){
         <b>${_mailboxView==='sent'?('To: '+m.recipients.map(r=>esc(r.full_name)).join(', ')):esc(m.sender_name)}</b>
         <span class="sub" style="font-size:11px">${fmtDateTime(m.created_at)}</span>
       </div>
-      <p class="prose" style="margin:6px 0 0">${esc(m.body)}</p>
+      <div class="prose" style="margin:6px 0 0">${_richHtmlSafe(m.body)}</div>
       ${(_mailboxView==='inbox'&&!m.read_at)?`<button class="btn ghost tiny" style="margin-top:8px" onclick="markMailboxRead(${m.id})">Mark read</button>`:''}
     </div>`).join('')||'<div class="empty"><h3>Nothing here yet</h3></div>'}
   </div>`;
 }
 async function sendMailboxMessage(){
   const ids=Object.keys(_mailboxComposeSel).map(Number);
-  const bodyEl=$('#mailboxBody'); const body=bodyEl?bodyEl.value.trim():'';
+  const body=await richValueSanitized('mailboxBody');
   if(!ids.length)return toast('Pick at least one recipient',true);
   if(!body)return toast('Write a message',true);
   const alsoEmail=!!($('#mailboxAlsoEmail')&&$('#mailboxAlsoEmail').checked);
@@ -4629,25 +4729,25 @@ async function openEnquiry(id){
       <button class="btn ghost tiny" onclick="closeModal()" aria-label="Back">← Back</button>
     </div>
     <div class="mono" style="font-size:12px;color:var(--muted);margin-bottom:12px">${esc(e.from_email)} · ${fmtDate(e.created_at)}</div>
-    <p class="prose" style="background:var(--paper-2);padding:12px;border-radius:8px">${esc(e.body)}</p>
+    <div class="prose" style="background:var(--paper-2);padding:12px;border-radius:8px">${_richHtmlSafe(e.body)}</div>
     <div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--paper)">
       <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">AI reply assistant <span class="hint" style="font-weight:400">MyFastRecruiter Support Assistance</span></div>
       <input class="input" id="aiinstruct" placeholder="Optional: tell the AI how to reply (e.g. decline refund politely, explain 14-day trial)" style="margin-bottom:8px"/>
       <button class="btn ghost sm" id="aigen" onclick="aiDraft(${id})">Generate reply</button>
     </div>
-    <label class="fld" style="margin-top:12px"><span class="lab">Reply <span class="hint">(emails the customer)</span></span><textarea class="textarea" id="ereply" placeholder="Type your reply, or generate one above…"></textarea></label>
+    <label class="fld" style="margin-top:12px"><span class="lab">Reply <span class="hint">(emails the customer)</span></span>${richBox('ereply','',{placeholder:'Type your reply, or generate one above…'})}</label>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn ghost" onclick="assignEnq(${id})">Assign to me</button><button class="btn ghost" onclick="closeEnq(${id})">Mark ticket closed</button><button class="btn signal" onclick="replyEnq(${id})">Send reply</button></div>
   </div></div>`;
 }
 async function assignEnq(id){try{await api('/admin/enquiries/'+id+'/assign',{method:'POST'});toast('Assigned to you');closeModal();renderAdminPanel();}catch(e){toast(e.message,true);}}
 async function closeEnq(id){try{await api('/admin/enquiries/'+id+'/close',{method:'POST'});toast('Enquiry closed');closeModal();renderAdminPanel();}catch(e){toast(e.message,true);}}
-async function replyEnq(id){const body=$('#ereply').value.trim();if(!body)return toast('Write a reply',true);try{await api('/admin/enquiries/'+id+'/reply',{method:'POST',body:{body}});toast('Reply sent & logged');closeModal();renderAdminPanel();}catch(e){toast(e.message,true);}}
+async function replyEnq(id){const body=await richValueSanitized('ereply');if(!body)return toast('Write a reply',true);try{await api('/admin/enquiries/'+id+'/reply',{method:'POST',body:{body}});toast('Reply sent & logged');closeModal();renderAdminPanel();}catch(e){toast(e.message,true);}}
 async function aiDraft(id){
   const btn=$('#aigen'); const instruction=($('#aiinstruct')&&$('#aiinstruct').value.trim())||'';
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Generating…';}
   try{
     const r=await api('/admin/enquiries/'+id+'/ai-draft',{method:'POST',body:{instruction}});
-    if(r&&r.draft){ $('#ereply').value=r.draft; toast('Draft generated — review before sending'); }
+    if(r&&r.draft){ richSetValue('ereply',r.draft); toast('Draft generated — review before sending'); }
     else toast('No draft returned',true);
   }catch(e){ toast(e.message||'AI unavailable',true); }
   finally{ if(btn){btn.disabled=false;btn.textContent='Generate reply';} }
@@ -5620,7 +5720,8 @@ function renderExamQuestion(){
   } else {
     ans = `<textarea id="examTA" placeholder="Type your answer here" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-quillbot-disabled="true" onpaste="return false" ondrop="return false"
       style="width:100%;min-height:150px;padding:12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:15px"
-      oninput="_examAutosave(${q.id},this.value)">${esc(_exam.answers[q.id]||'')}</textarea>`;
+      oninput="_wordCap(this);_examAutosave(${q.id},this.value)">${esc(_exam.answers[q.id]||'')}</textarea>
+      <span class="hint wordcap" style="display:block;text-align:right;margin-top:4px;font-size:11.5px">${_wordCapCount(_exam.answers[q.id]||'')} / ${WORD_CAP} words</span>`;
   }
   const last = _exam.idx===_exam.questions.length-1;
   const imgHtml = q.image_url ? `<img id="examQImg" style="max-width:100%;border-radius:8px;border:1px solid var(--line);margin:0 0 16px;display:block" alt="Question diagram"/>` : '';
