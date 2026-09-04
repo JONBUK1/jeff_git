@@ -1819,8 +1819,20 @@ async function ViewBoard(){
 }
 function resolver(){const rows=[{i:'05',w:38,v:'41',c:'dim'},{i:'04',w:52,v:'58',c:'dim'},{i:'03',w:66,v:'72',c:''},{i:'02',w:74,v:'81',c:''},{i:'01',w:92,v:'88',c:'top',n:'Ella Johnson'}];
 return `<div class="resolver" aria-hidden="true"><div class="rtitle">148 applicants → ranked</div>${rows.map(r=>`<div class="rrow ${r.c}"><span class="idx">${r.i}</span>${r.n?`<span class="name">${r.n}</span>`:''}<span class="bar" style="width:${r.w}px"></span><span class="val">${r.v}</span></div>`).join('')}<div class="rfoot">Get <b>Screened</b> and <b>Hired Faster</b>.</div>`;}
+function parseSkillsField(raw){
+  // required_skills is stored two ways depending on when the job was posted:
+  // a JSON array (current job-post form, job_skills tag picker) or a legacy
+  // plain comma-separated string (predates the tag picker — see submitJob()'s
+  // loader around _profileTags.job_skills for the same JSON-with-fallback
+  // read). Try JSON first; anything that isn't a valid JSON array (including
+  // the legacy format, which never is) falls back to a comma-split.
+  if(!raw) return [];
+  try{ const p=JSON.parse(raw); if(Array.isArray(p)) return p.map(s=>String(s).trim()).filter(Boolean); }
+  catch(e){}
+  return String(raw).split(',').map(s=>s.trim()).filter(Boolean);
+}
 function jobRow(j,preview){
-  const skills=(j.required_skills||'').split(',').map(s=>s.trim()).filter(Boolean).slice(0,5);
+  const skills=parseSkillsField(j.required_skills).slice(0,5);
   const pay=formatPay(j);
   const work=[j.level,j.employment_type,j.location||scopeLabel(j)].filter(Boolean).join(' ');
   const terms=[work,j.hours_per_week?j.hours_per_week+'h/wk':'',j.timezone,'Posted - '+fmtDate(j.created_at)].filter(Boolean);
@@ -1834,7 +1846,7 @@ function jobRow(j,preview){
 }
 function previewJobModal(id){
   const j=(boardJobs||[]).find(x=>x.id===id); if(!j)return;
-  const skills=(j.required_skills||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const skills=parseSkillsField(j.required_skills);
   const pay=formatPay(j);
   const work=[j.level,j.employment_type,j.location||scopeLabel(j)].filter(Boolean).join(' · ');
   const desc=(j.description||'').trim();
@@ -1865,7 +1877,7 @@ async function loadSavedJobIds(){
 async function ViewJob(){
   const j=await api('/jobs/'+state.params.id,{auth:!!store.token}); const u=store.user;
   if(u&&u.role==='candidate'&&!window._savedJobIds) await loadSavedJobIds();
-  const skills=(j.required_skills||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const skills=parseSkillsField(j.required_skills);
   const pay=formatPay(j);
   const workTerms=[j.level,j.employment_type,j.location||scopeLabel(j)].filter(Boolean).join(' ');
   const detailTerms=[workTerms,j.hours_per_week?j.hours_per_week+'h/wk':'',j.timezone,'Posted - '+fmtDate(j.created_at)].filter(Boolean).map(esc).join(' - ');
