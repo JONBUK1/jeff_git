@@ -401,6 +401,7 @@
   .theme-opt[aria-pressed="true"]{background:var(--go-bg);color:var(--go);font-weight:600}
   @media (max-width:640px){.theme-switch{right:12px;bottom:12px}}
 </style>
+<script src="https://www.google.com/recaptcha/api.js?render=6Le1iagtAAAAACOLrKp7Xkk96XMuy8mYIr4HKxj7"></script>
 </head>
 <body>
   <div id="banner"></div>
@@ -731,6 +732,25 @@ function formatPay(j){
   return `${s}${compact(j.pay_min!=null?j.pay_min:j.pay_max)}${suf}`;
 }
 
+/* ----- reCAPTCHA v3 -----
+   Site key is public by design (Google's own model — meant to be embedded
+   in frontend code, unlike the secret key which stays server-side in .env).
+   getRecaptchaToken() never throws and never blocks a submit on its own —
+   if the script didn't load (ad-blocker/privacy extension) or the API call
+   fails, it resolves null and the backend's verify_recaptcha() treats a
+   missing token as "skip the check", not "reject" (app/recaptcha.py). */
+const RECAPTCHA_SITE_KEY='6Le1iagtAAAAACOLrKp7Xkk96XMuy8mYIr4HKxj7';
+function getRecaptchaToken(action){
+  return new Promise(resolve=>{
+    try{
+      if(!window.grecaptcha){resolve(null);return;}
+      grecaptcha.ready(()=>{
+        grecaptcha.execute(RECAPTCHA_SITE_KEY,{action}).then(resolve).catch(()=>resolve(null));
+      });
+    }catch(e){resolve(null);}
+  });
+}
+
 /* ----- API with demo fallback ----- */
 async function api(path,{method='GET',body,form,auth=true}={}){
   const headers={}; if(auth&&store.token)headers['Authorization']='Bearer '+store.token;
@@ -953,17 +973,20 @@ const DIRECT_PLAN_CHECKOUT={
   scale  :'https://myfastrecruiter-subscriptionservices.lemonsqueezy.com/checkout/buy/6443ac1e-48f0-4cc3-9e88-67d6c1da5ca8',
   large  :'https://myfastrecruiter-subscriptionservices.lemonsqueezy.com/checkout/buy/a5ca8e96-1c28-4823-b3b0-6dc2dd43409c',
 };
-// Separate Lemon Squeezy product for the Smart AI add-on — billed alongside,
-// not instead of, an existing Large subscription. Paste the real checkout URL
-// here the moment that product exists.
+// Separate Lemon Squeezy product for the Deep Analysis add-on — billed
+// alongside, not instead of, an existing Large subscription. Paste the real
+// checkout URL here the moment that product exists.
 // IMPORTANT: name the Lemon Squeezy product/variant so its title contains
-// "Smart AI" but NOT "Large" (e.g. "Smart AI Add-on") — the webhook uses that
-// to tell a pure add-on apart from the bundle below (see app/payments.py).
+// "Deep Analysis" but NOT "Large" (e.g. "Deep Analysis Add-on") — the webhook
+// uses that to tell a pure add-on apart from the bundle below (see
+// app/payments.py; internal field/DB column stays "smart_ai" — only this
+// product name and the webhook's match string need to agree).
 const SMART_AI_ADDON_CHECKOUT='#';
-// Separate Lemon Squeezy product: Large + Smart AI bundled in one checkout,
-// for a customer who wants both from day one. Name it so the title contains
-// BOTH "Large" and "Smart AI" (e.g. "Large + Smart AI Add-on") — the webhook
-// then sets the base plan AND the smart_ai flag together from this one event.
+// Separate Lemon Squeezy product: Large + Deep Analysis bundled in one
+// checkout, for a customer who wants both from day one. Name it so the title
+// contains BOTH "Large" and "Deep Analysis" (e.g. "Large + Deep Analysis
+// Add-on") — the webhook then sets the base plan AND the smart_ai flag
+// together from this one event.
 const LARGE_SMART_CHECKOUT='#';
 // Credit-pack one-time purchases — funds supervised proctoring + AI interview
 // reports (assessment/README.md §3). Separate Lemon Squeezy products from
@@ -2031,6 +2054,7 @@ async function submitAuth(reg){
     let payload,path;
     if(reg){const full_name=$('#name').value.trim();if(full_name.length<2)throw new Error('Enter your full name');const _pp=passwordProblem(password);if(_pp)throw new Error(_pp);const p2=$('#password2')?$('#password2').value:'';if(password!==p2)throw new Error('Passwords do not match');payload={email,password,full_name,role:authRole,accept_terms:_accept};if(authRole==='employer'){payload.company_name=$('#company').value.trim();if(!payload.company_name)throw new Error('Employers need a company name');}path='/auth/register';}
     else{payload={email,password};path='/auth/login';}
+    payload.recaptcha_token=await getRecaptchaToken(reg?'signup':'login');
     const res=await api(path,{method:'POST',body:payload,auth:false});
     if(reg && res && res.confirm_required){
       go('confirmSent',{email});
@@ -2230,7 +2254,8 @@ async function submitEnquiry(){
   if(!emailok){const e=$('#enqerr');e.textContent='Invalid email format.';e.style.display='block';return;}
   if(subject.length<3||body.length<3){const e=$('#enqerr');e.textContent='Please add a subject and a message.';e.style.display='block';return;}
   const b=$('#enqbtn');b.disabled=true;b.innerHTML='<span class="spin"></span>';
-  try{await api('/enquiries',{method:'POST',body:{from_email,subject,body},auth:false});toast('Enquiry sent — we will reply by email');go('board');}
+  const recaptcha_token=await getRecaptchaToken('contact');
+  try{await api('/enquiries',{method:'POST',body:{from_email,subject,body,recaptcha_token},auth:false});toast('Enquiry sent — we will reply by email');go('board');}
   catch(e){toast(e.message,true);b.disabled=false;b.textContent='Send enquiry';}
 }
 
@@ -2274,7 +2299,8 @@ async function submitPlacement(){
     '', 'Requirements & benefits:', req,
     q?('\nScreening questions:\n'+q):'', assess?('\nAssessment:\n'+assess):''].join('\n');
   const b=$('#plcbtn');b.disabled=true;b.innerHTML='<span class="spin"></span>';
-  try{await api('/enquiries',{method:'POST',body:{from_email,subject,body},auth:false});toast('Request sent — our team will reply by email');go(store.user&&store.user.role==='employer'?'employerJobs':'board');}
+  const recaptcha_token=await getRecaptchaToken('contact');
+  try{await api('/enquiries',{method:'POST',body:{from_email,subject,body,recaptcha_token},auth:false});toast('Request sent — our team will reply by email');go(store.user&&store.user.role==='employer'?'employerJobs':'board');}
   catch(e){toast(e.message,true);b.disabled=false;b.textContent='Send request';}
 }
 
