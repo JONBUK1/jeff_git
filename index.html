@@ -1830,13 +1830,15 @@ function renderJobRows(){
 
 /* ===== BOARD ===== */
 async function ViewBoard(){
+  // Renders the hero + shell immediately, with NO await before this
+  // function returns -- the hero/toolbar don't need job data at all, so
+  // there's no reason a slow or cold-starting backend should hold up
+  // anything the visitor sees first. The actual job list is fetched
+  // afterward (_hydrateBoard, scheduled below) and patched in once ready,
+  // same "render shell, hydrate data" shape as everything else in this
+  // file that already defers work past the initial render.
   const q=state.params.q||'';
-  let jobs=[];
-  try{ jobs=(await api('/jobs'+(q?('?q='+encodeURIComponent(q)):''),{auth:false}))||[]; }
-  catch(e){ return `<main><div class="wrap"><section style="padding:40px 0"><div class="eyebrow">For candidates</div><h1 style="margin-top:14px">A shortlist,<br/>not a <span class="accentword">flood</span>.</h1><div class="empty" style="margin-top:24px"><h3>Couldn't load jobs right now</h3><p style="color:var(--muted)">${esc(e.message||'Please try again in a moment.')}</p><button class="btn signal" style="margin-top:12px" onclick="go('board')">Retry</button></div></div></main>`; }
-  boardJobs=jobs; boardFilters={cats:new Set(),pay:0,loc:'any',date:'any'};
   const u=store.user;
-  if(u&&u.role==='candidate') await loadSavedJobIds();
   const hero=(!u||u.role==='candidate')?`<section class="hero"><div class="wrap"><div class="hero-grid">
     <div><div class="eyebrow">Curated hiring · U.S. Opportunities</div>
       <h1 style="margin-top:14px">A shortlist,<br/>not a <span class="accentword">flood</span>.</h1>
@@ -1859,22 +1861,43 @@ async function ViewBoard(){
       </div>
       <button class="btn ghost sm" onclick="clearFilters()">Clear filters</button>
     </div>`;
-  const newest=jobs.length?`<section class="wrap" style="padding-top:${hero?'8px':'32px'}">
-    <div class="section-head"><div><h2>${q?'Search results':'Newest roles'}</h2><div class="sub">${jobs.length} ${jobs.length===1?'role':'roles'} accepting applications</div></div></div>
-    ${!q?`<div class="jobs" style="margin-top:16px">${jobs.slice(0,3).map(j=>jobRow(j,true)).join('')}</div>
-    <div style="text-align:center;margin:14px 0"><button class="btn ghost" onclick="document.getElementById('joblist').scrollIntoView({behavior:'smooth'})">View all newest roles →</button></div>`:''}
+  setTimeout(()=>_hydrateBoard(q),0);
+  return hero+`<section class="wrap" id="boardNewest" style="padding-top:${hero?'8px':'32px'}">
+    <div class="section-head"><div><h2>${q?'Search results':'Newest roles'}</h2><div class="sub" id="boardNewestSub"><span class="spin-muted"></span></div></div></div>
+    <div id="boardNewestJobs" class="jobs" style="margin-top:16px"></div>
+    <div id="boardNewestMore"></div>
     ${toolbar}
-  </section>`:`<section class="wrap" style="padding-top:${hero?'8px':'32px'}">
-    <div class="section-head"><div><h2>${q?'Search results':'Newest roles'}</h2></div></div>
-    ${toolbar}
-  </section>`;
-  _boardPage=0;
-  setTimeout(renderJobRows,0);
-  return hero+newest+`<main><div class="wrap">
-    <div class="section-head" id="joblist"><div><h2>Open roles</h2><div class="sub" id="jobcount">${jobs.length} ${jobs.length===1?'role':'roles'} accepting applications</div></div></div>
-    <div id="jobrows" class="jobs">${jobs.length?'':`<div class="empty"><h3>No roles yet</h3></div>`}</div>
+  </section><main><div class="wrap">
+    <div class="section-head" id="joblist"><div><h2>Open roles</h2><div class="sub" id="jobcount"><span class="spin-muted"></span></div></div></div>
+    <div id="jobrows" class="jobs"><div class="pageload">Loading…</div></div>
     <div id="jobpager"></div>
   </div></main>`;
+}
+async function _hydrateBoard(q){
+  let jobs=[];
+  try{ jobs=(await api('/jobs'+(q?('?q='+encodeURIComponent(q)):''),{auth:false}))||[]; }
+  catch(e){
+    if(state.view!=='board'||(state.params.q||'')!==q) return; // navigated away while this was in flight
+    const jr=$('#jobrows'); if(jr) jr.innerHTML=`<div class="empty"><h3>Couldn't load jobs right now</h3><p style="color:var(--muted)">${esc(e.message||'Please try again in a moment.')}</p><button class="btn signal" style="margin-top:12px" onclick="go('board')">Retry</button></div>`;
+    const ns=$('#boardNewestSub'); if(ns) ns.textContent='';
+    const jc=$('#jobcount'); if(jc) jc.textContent='';
+    return;
+  }
+  if(state.view!=='board'||(state.params.q||'')!==q) return; // stale response for a view/search we've left
+  boardJobs=jobs; boardFilters={cats:new Set(),pay:0,loc:'any',date:'any'};
+  const u=store.user;
+  if(u&&u.role==='candidate'){ try{ await loadSavedJobIds(); }catch(e){} }
+  if(state.view!=='board'||(state.params.q||'')!==q) return;
+  const countTxt=jobs.length?`${jobs.length} ${jobs.length===1?'role':'roles'} accepting applications`:'';
+  const ns=$('#boardNewestSub'); if(ns) ns.textContent=countTxt;
+  if(jobs.length&&!q){
+    const nj=$('#boardNewestJobs'); if(nj) nj.innerHTML=jobs.slice(0,3).map(j=>jobRow(j,true)).join('');
+    const nm=$('#boardNewestMore'); if(nm) nm.innerHTML='<div style="text-align:center;margin:14px 0"><button class="btn ghost" onclick="document.getElementById(\'joblist\').scrollIntoView({behavior:\'smooth\'})">View all newest roles →</button></div>';
+  }
+  const jc=$('#jobcount'); if(jc) jc.textContent=countTxt;
+  _boardPage=0;
+  if(!jobs.length){ const jr=$('#jobrows'); if(jr) jr.innerHTML='<div class="empty"><h3>No roles yet</h3></div>'; }
+  else renderJobRows();
 }
 function resolver(){const rows=[{i:'05',w:38,v:'41',c:'dim'},{i:'04',w:52,v:'58',c:'dim'},{i:'03',w:66,v:'72',c:''},{i:'02',w:74,v:'81',c:''},{i:'01',w:92,v:'88',c:'top',n:'Ella Johnson'}];
 return `<div class="resolver" aria-hidden="true"><div class="rtitle">148 applicants → ranked</div>${rows.map(r=>`<div class="rrow ${r.c}"><span class="idx">${r.i}</span>${r.n?`<span class="name">${r.n}</span>`:''}<span class="bar" style="width:${r.w}px"></span><span class="val">${r.v}</span></div>`).join('')}<div class="rfoot">Get <b>Screened</b> and <b>Hired Faster</b>.</div>`;}
