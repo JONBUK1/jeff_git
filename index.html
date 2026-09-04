@@ -400,6 +400,30 @@
   .theme-opt:hover{background:var(--paper-2)}
   .theme-opt[aria-pressed="true"]{background:var(--go-bg);color:var(--go);font-weight:600}
   @media (max-width:640px){.theme-switch{right:12px;bottom:12px}}
+
+  /* ---- Exam: timer urgency, progress bar, recording thumbnail ---- */
+  #examTimer{transition:background .3s,color .3s}
+  #examTimer.exam-timer-warn{background:var(--pending-bg);color:var(--pending);border-color:transparent}
+  #examTimer.exam-timer-critical{background:var(--stop-bg);color:var(--stop);border-color:transparent;animation:examPulse 1.4s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){#examTimer.exam-timer-critical{animation:none}}
+  @keyframes examPulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .exam-progress{display:flex;gap:4px;margin-bottom:10px}
+  .exam-progress .seg{flex:1;height:4px;border-radius:99px;background:var(--line)}
+  .exam-progress .seg.done{background:var(--signal)}
+  .exam-progress .seg.current{background:var(--signal);opacity:.5}
+  .exam-cam-thumb{position:fixed;right:16px;bottom:16px;width:112px;height:84px;border-radius:10px;overflow:hidden;
+    border:2px solid var(--signal);box-shadow:var(--shadow);background:#000;z-index:40}
+  .exam-cam-thumb video{width:100%;height:100%;object-fit:cover;display:block}
+  .exam-cam-thumb .lbl{position:absolute;left:6px;bottom:5px;font-family:var(--mono);font-size:9px;letter-spacing:.06em;
+    color:#fff;display:flex;align-items:center;gap:4px;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+  .exam-cam-thumb .dot{width:6px;height:6px;border-radius:99px;background:#e5473b;animation:examPulse 1.4s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.exam-cam-thumb .dot{animation:none}}
+  @media (max-width:640px){.exam-cam-thumb{width:84px;height:63px;right:10px;bottom:10px}}
+  .spin-muted{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--muted);border-radius:99px;animation:sp .6s linear infinite}
+  .exam-cam-viewfinder{width:100%;aspect-ratio:4/3;max-height:280px;border-radius:10px;background:var(--paper-2);
+    border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:16px}
+  .exam-cam-viewfinder video{width:100%;height:100%;object-fit:cover;display:block}
+  .exam-cam-viewfinder .ph{font-size:40px;opacity:.35}
 </style>
 <script src="https://www.google.com/recaptcha/api.js?render=6Le1iagtAAAAACOLrKp7Xkk96XMuy8mYIr4HKxj7"></script>
 </head>
@@ -1241,6 +1265,7 @@ async function ViewUploadQuestions(){
   const timing=cfg.timing||'on_apply', supervision=cfg.supervision||'unsupervised';
   const videoOn=stages.includes('video'), videoMode=cfg.video_mode||'with_assessment';
   window._uqCodingQuestions=[];   // reset per render — live coding is a per-save action, not a persisted client draft
+  setTimeout(restoreUqPreviewIfSameJob,0);
   return `<main><div class="wrap" style="max-width:720px">
     <div class="section-head"><div><h2>Assessment questions</h2>
       <div class="sub">Choose which stages run for a role, then submit the questions for each. Our team reviews and formats them before any candidate sees them.</div></div></div>
@@ -1346,6 +1371,17 @@ async function ViewUploadQuestions(){
     </div>`}
   </div></main>`;
 }
+function restoreUqPreviewIfSameJob(){
+  // ViewUploadQuestions() always mounts an empty #uq_preview div, since a
+  // fresh render has no way to know whether there's an open, unsaved draft
+  // to restore -- switching the Job dropdown and back used to silently wipe
+  // it. If the still-open draft belongs to the job we're looking at right
+  // now, put it back; a different job (or no open draft at all) stays empty,
+  // same as before.
+  if(window._uqPreviewId!=null && window._uqPreviewJobId===window._uqJobId){
+    renderQuestionPreview(window._uqPreviewId);
+  }
+}
 function toggleUqVideoMode(){
   const on=document.getElementById('uq_video_on').checked;
   const wrap=document.getElementById('uq_video_mode_wrap'); if(wrap) wrap.style.display=on?'block':'none';
@@ -1355,7 +1391,7 @@ function toggleUqScreenRecording(){
   const wrap=document.getElementById('uq_screen_rec_wrap'); if(wrap) wrap.style.display=supervised?'block':'none';
   if(!supervised){ const cb=document.getElementById('uq_screen_recording'); if(cb) cb.checked=false; }
 }
-function switchUqJob(id){ window._uqJobId=parseInt(id); render(); }
+function switchUqJob(id){ _uqFlushAutosave(); window._uqJobId=parseInt(id); render(); }
 /* ---- Live coding (2B) authoring: structured, not paste-and-convert —
    test cases need exact input/output pairs, not AI-guessed prose. ---- */
 const UQ_CODE_LANGUAGES=[['python','Python'],['javascript','JavaScript'],['java','Java'],['cpp','C++'],['go','Go']];
@@ -1418,7 +1454,7 @@ async function saveCodingQuestions(){
   try{
     const res=await api('/assessments/technical',{method:'POST',body:{job_id:window._uqJobId,questions:qs}});
     toast(res.note||'Saved');
-    window._uqPreviewId=res.assessment_id;
+    window._uqPreviewId=res.assessment_id; window._uqPreviewJobId=window._uqJobId;
     renderQuestionPreview(res.assessment_id);
   }catch(e){ toast(e.message||'Could not save',true); }
   finally{ if(b){b.disabled=false;b.textContent='Save coding questions';} }
@@ -1473,7 +1509,7 @@ async function submitQuestions(){
     if(res.status==='draft'){
       // Self-service path: preview/edit right here, no admin queue.
       toast(res.note||'Converted — review below');
-      window._uqPreviewId = res.assessment_id;
+      window._uqPreviewId = res.assessment_id; window._uqPreviewJobId=window._uqJobId;
       renderQuestionPreview(res.assessment_id);
     } else {
       toast(res.note||'Submitted for review');go('employerJobs');
@@ -1543,19 +1579,34 @@ async function renderQuestionPreview(assessmentId){
       ${opts}${multiToggle}${durField}${imageBlock}${hint}
     </div>`;
   }).join('');
-  host.innerHTML = `<div class="eyebrow" style="margin:4px 0 10px">Preview — edit anything before publishing</div>
+  host.innerHTML = `<div class="eyebrow" style="margin:4px 0 10px">Preview — edits save automatically</div>
     ${rows}
-    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center">
       <button class="btn ghost" id="uq_save_btn" onclick="saveQuestionEdits(${assessmentId})">Save changes</button>
       <button class="btn ghost" onclick="saveAsTemplate(${assessmentId})">Save as reusable template</button>
       <button class="btn signal" id="uq_publish_btn" style="flex:1" onclick="publishAssessment(${assessmentId})">Publish — candidates can start seeing this</button>
+      <span id="uq_autosave_status" style="display:none;font-size:12px;color:var(--muted)"></span>
     </div>`;
   window._uqPreviewQuestions.forEach((q,i)=>{
     if(q.image) loadAuthedImage('/assessments/'+assessmentId+'/questions/'+q.id+'/image','uqp_img_'+i);
   });
 }
-function _uqPreviewSet(i, field, value){ if(window._uqPreviewQuestions&&window._uqPreviewQuestions[i]) window._uqPreviewQuestions[i][field]=value; }
-function _uqPreviewSetOpt(i, oi, value){ if(window._uqPreviewQuestions&&window._uqPreviewQuestions[i]&&window._uqPreviewQuestions[i].options) window._uqPreviewQuestions[i].options[oi]=value; }
+let _uqAutosaveTimer=null;
+function _uqAutosave(){
+  clearTimeout(_uqAutosaveTimer);
+  _uqAutosaveTimer=setTimeout(()=>{ _uqAutosaveTimer=null; if(window._uqPreviewId!=null) saveQuestionEdits(window._uqPreviewId, true); }, 900);
+}
+function _uqFlushAutosave(){
+  // Switching the Job dropdown mid-debounce would otherwise let the pending
+  // save get silently discarded by restoreUqPreviewIfSameJob()'s refetch
+  // before the timer ever fires -- save immediately instead of waiting.
+  if(_uqAutosaveTimer!=null){
+    clearTimeout(_uqAutosaveTimer); _uqAutosaveTimer=null;
+    if(window._uqPreviewId!=null) saveQuestionEdits(window._uqPreviewId, true);
+  }
+}
+function _uqPreviewSet(i, field, value){ if(window._uqPreviewQuestions&&window._uqPreviewQuestions[i]){ window._uqPreviewQuestions[i][field]=value; _uqAutosave(); } }
+function _uqPreviewSetOpt(i, oi, value){ if(window._uqPreviewQuestions&&window._uqPreviewQuestions[i]&&window._uqPreviewQuestions[i].options){ window._uqPreviewQuestions[i].options[oi]=value; _uqAutosave(); } }
 function _uqPreviewToggleMultiType(i, toMulti){
   const q=window._uqPreviewQuestions&&window._uqPreviewQuestions[i]; if(!q) return;
   q.type = toMulti ? 'mcq_multi' : 'mcq';
@@ -1625,20 +1676,27 @@ async function _uqGenerateChart(i){
     }catch(e){ toast(e.message||'Could not attach chart',true); }
   }, 'image/png');
 }
-async function saveQuestionEdits(assessmentId){
-  const b=document.getElementById('uq_save_btn'); if(b){b.disabled=true;b.innerHTML='<span class="spin"></span>';}
+async function saveQuestionEdits(assessmentId, silent){
+  const b=document.getElementById('uq_save_btn');
+  const status=document.getElementById('uq_autosave_status');
+  if(!silent && b){b.disabled=true;b.innerHTML='<span class="spin"></span>';}
+  if(silent && status){status.textContent='Saving…';status.style.color='var(--muted)';status.style.display='inline';}
   try{
     await api('/assessments/'+assessmentId+'/questions',{method:'PATCH',body:window._uqPreviewQuestions||[]});
-    toast('Saved');
-  }catch(e){ toast(e.message||'Could not save',true); }
-  finally{ if(b){b.disabled=false;b.textContent='Save changes';} }
+    if(silent){ if(status){status.textContent='Saved ✓';setTimeout(()=>{if(status)status.style.display='none';},2000);} }
+    else toast('Saved');
+  }catch(e){
+    if(silent){ if(status){status.textContent='Could not autosave — click Save changes';status.style.color='var(--stop)';} }
+    else toast(e.message||'Could not save',true);
+  }
+  finally{ if(!silent && b){b.disabled=false;b.textContent='Save changes';} }
 }
 async function useTemplate(){
   const sel=document.getElementById('uq_template_select'); if(!sel||!sel.value) return;
   try{
     const res=await api('/assessments/templates/'+sel.value+'/use',{method:'POST',body:{job_id:window._uqJobId}});
     toast(res.note||'Template applied — preview below');
-    window._uqPreviewId=res.assessment_id;
+    window._uqPreviewId=res.assessment_id; window._uqPreviewJobId=window._uqJobId;
     renderQuestionPreview(res.assessment_id);
   }catch(e){ toast(e.message||'Could not use that template',true); }
 }
@@ -1708,6 +1766,7 @@ async function render(){
     if(V==='reset')return void(el.innerHTML=ViewReset());
     if(V==='confirmSent')return void(el.innerHTML=ViewConfirmSent());
     if(V==='confirmFailed')return void(el.innerHTML=ViewConfirmFailed());
+    if(V==='confirmAccount')return void(el.innerHTML=ViewConfirmAccount());
     if(V==='contact')return void(el.innerHTML=ViewContact());
     if(V==='placement')return void(el.innerHTML=ViewPlacement());
     if(V==='about')return void(el.innerHTML=ViewAbout());
@@ -2028,6 +2087,11 @@ function videoDuration(file){
 /* ===== AUTH ===== */
 function ViewAuth(){
   const mode=state.params.mode||'login',reg=mode==='register';
+  // The toggle below always renders "I'm a candidate" as pressed -- authRole
+  // must match that on every fresh mount of this form, or a stale value from
+  // an earlier visit (e.g. register -> login -> register, without ever
+  // touching the toggle again) submits a different role than what's shown.
+  if(reg) authRole='candidate';
   return `<main><div class="wrap"><div class="auth-wrap">
     <h1 style="font-size:29px;text-align:center;margin-bottom:6px">${reg?'Create your account':'Welcome back'}</h1>
     <p style="text-align:center;color:var(--muted);margin:0 0 20px">${reg?'Free while we are in early access.':'Sign in to continue.'}</p>
@@ -2126,6 +2190,36 @@ async function resendConfirmFromField(){
   try{ await api('/auth/resend-confirmation',{method:'POST',body:{email},auth:false});
     const ok=$('#cfok');ok.textContent='If an unconfirmed account exists, a new link has been sent.';ok.style.display='block';b.textContent='Sent';
   }catch(e){const er=$('#cferr');er.textContent=e.message;er.style.display='block';b.disabled=false;b.textContent='Send new link';}
+}
+function ViewConfirmAccount(){
+  const token=(state.params&&state.params.token)||'';
+  if(!token) return ViewConfirmFailed();
+  return `<main><div class="wrap"><div class="auth-wrap">
+    <h1 style="font-size:26px;text-align:center;margin-bottom:6px">Confirm your account</h1>
+    <p style="text-align:center;color:var(--muted);margin:0 0 20px">Enter your password to finish confirming your email — this proves it's really you, not just whoever has this link.</p>
+    <div class="card">
+      <div id="ca_err" style="color:var(--stop);font-size:13px;margin-bottom:10px;display:none"></div>
+      <label class="fld"><span class="lab">Password</span><input class="input" id="ca_password" type="password" autocomplete="current-password"/></label>
+      <button class="btn signal" id="ca_btn" style="width:100%;margin-top:4px" onclick="submitConfirmAccount('${esc(token)}')">Confirm my account</button>
+    </div>
+  </div></div></main>`;
+}
+async function submitConfirmAccount(token){
+  const pw=$('#ca_password'), password=pw?pw.value:'';
+  const err=$('#ca_err');
+  if(!password){ err.textContent='Enter your password.'; err.style.display='block'; return; }
+  err.style.display='none';
+  const b=$('#ca_btn'); b.disabled=true; b.innerHTML='<span class="spin"></span>';
+  const recaptcha_token=await getRecaptchaToken('confirm_email');
+  try{
+    const r=await api('/auth/confirm-email',{method:'POST',auth:false,body:{token,password,recaptcha_token}});
+    if(r&&r.access_token){ store.token=r.access_token; store.user=r.user; }
+    toast('Email confirmed — welcome!');
+    go(store.user&&store.user.role==='employer'?'employerJobs':'board');
+  }catch(e){
+    err.textContent=e.message||'Could not confirm your account.'; err.style.display='block';
+    b.disabled=false; b.textContent='Confirm my account';
+  }
 }
 function ViewForgot(){
   return `<main><div class="wrap"><div class="auth-wrap">
@@ -2436,6 +2530,27 @@ function _loadScriptOnce(src){
     document.head.appendChild(s);
   });
 }
+/* CV/CV-like document preview sanitization (mammoth.js .docx-to-HTML output
+   is otherwise inserted via innerHTML unfiltered). Explicit allowlist, not
+   DOMPurify's default blocklist config -- mammoth's real output for a CV
+   only ever needs these tags/attrs, so anything else (forms, inline styles,
+   iframes, etc.) is excluded by construction rather than by trying to
+   enumerate every attack. data:image/* is allowed on <img src> specifically
+   (mammoth embeds docx images as base64 data URIs) while every other data:
+   scheme stays blocked, same as javascript:. Verified against a battery of
+   real attack payloads (script/onerror/onload/javascript:/iframe/object/
+   embed/style-expression/form-action/meta-refresh) before shipping — see
+   readmeint.md. */
+const CV_PREVIEW_SANITIZE_CFG={
+  ALLOWED_TAGS:['p','br','strong','b','em','i','u','s','h1','h2','h3','h4','h5','h6',
+               'ul','ol','li','table','thead','tbody','tr','td','th','a','img','span','div','blockquote','hr'],
+  ALLOWED_ATTR:['href','src','alt','colspan','rowspan'],
+  ALLOWED_URI_REGEXP:/^(?:(?:https?|mailto):|data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,)/i,
+};
+async function _sanitizeCvHtml(html){
+  await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.14/purify.min.js');
+  return window.DOMPurify.sanitize(html||'', CV_PREVIEW_SANITIZE_CFG);
+}
 async function ViewCvPreview(){
   if(!store.user||store.user.role!=='candidate'){go('board');return '';}
   try{
@@ -2473,7 +2588,7 @@ async function renderDocxPreview(){
   try{
     await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js');
     const result=await window.mammoth.convertToHtml({arrayBuffer:_cvPreviewBuf});
-    host.innerHTML=result.value||'<p style="color:var(--muted)">This document appears to be empty.</p>';
+    host.innerHTML=result.value?await _sanitizeCvHtml(result.value):'<p style="color:var(--muted)">This document appears to be empty.</p>';
   }catch(e){
     host.innerHTML='<div class="empty" style="padding:30px 0;text-align:center"><h3>Couldn\'t render preview</h3><p style="color:var(--muted)">Download the file to view it instead.</p></div>';
   }
@@ -3628,7 +3743,7 @@ async function playAssessmentVideo(path, btn){
    403s anyone else). Chunks play back sequentially, not concatenated, since
    there's no server-side transcoding pipeline — see assessment/README.md §7. ---- */
 async function openProctoringReview(sessionId){
-  $('#modal').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:640px">
+  $('#modal').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:760px">
     <div class="eyebrow">Continuous recording</div>
     <h3 style="font-size:18px;margin:6px 0 14px">Proctoring session</h3>
     <div id="proctorReviewBody" style="font-size:13px;color:var(--muted)">Loading…</div>
@@ -3648,18 +3763,33 @@ async function openProctoringReview(sessionId){
   const hasScreen = data.screen_active && data.screen_chunks && data.screen_chunks.length;
   const notFullScreen = data.screen_active && data.screen_surface && data.screen_surface !== 'monitor';
   window._proctorChunks = {camera: data.chunks, screen: data.screen_chunks||[]};
-  window._proctorSource = 'camera'; window._proctorIdx = 0;
+  window._proctorIdx = 0;
+  // Integrity-flag chips: what the exam's own tab-switch/blur/paste counters
+  // recorded, surfaced right here instead of making the reviewer already
+  // know something was flagged before opening this modal. Mild signals get
+  // the caution tone; nothing shown at all if the attempt has none.
+  const af = data.attempt_flags || {};
+  const flagChips = [];
+  if(af.tab_switches) flagChips.push(`${af.tab_switches} tab switch${af.tab_switches===1?'':'es'}`);
+  if(af.blur_seconds) flagChips.push(`${af.blur_seconds}s away from the tab`);
+  if(af.paste_attempts) flagChips.push(`${af.paste_attempts} paste attempt${af.paste_attempts===1?'':'s'}`);
+  if(af.device_access_denied) flagChips.push('camera/mic initially denied');
+  if(af.screen_share_declined) flagChips.push('screen share declined');
+  const flagChipStyle='display:inline-flex;align-items:center;font-size:11.5px;padding:3px 9px;border-radius:99px;background:var(--pending-bg);color:var(--pending)';
   body.innerHTML=`<div style="font-size:12.5px;margin-bottom:10px">
       ${data.chunk_count} clip${data.chunk_count===1?'':'s'} · ${data.reviewed_at?'Reviewed '+new Date(data.reviewed_at).toLocaleString():'Not yet reviewed'}
     </div>
-    ${notFullScreen?`<div style="font-size:12.5px;padding:8px 10px;border-radius:6px;background:var(--stop-bg,#fee);color:var(--stop);margin-bottom:10px">
+    ${flagChips.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${flagChips.map(c=>`<span style="${flagChipStyle}">${esc(c)}</span>`).join('')}</div>`
+      :`<div style="font-size:12px;color:var(--go);margin-bottom:10px">No integrity flags on this attempt.</div>`}
+    ${notFullScreen?`<div style="font-size:12.5px;padding:8px 10px;border-radius:6px;background:var(--stop-bg);color:var(--stop);margin-bottom:10px">
       ⚠ Candidate shared "${esc(data.screen_surface)}", not their entire screen.
     </div>`:''}
-    ${hasScreen?`<div style="display:flex;gap:6px;margin-bottom:8px">
-      <button class="btn ${window._proctorSource==='camera'?'signal':'ghost'} tiny" id="proctorSrcCamera" onclick="_proctorSwitchSource('camera')">📷 Camera</button>
-      <button class="btn ghost tiny" id="proctorSrcScreen" onclick="_proctorSwitchSource('screen')">🖥 Screen</button>
-    </div>`:''}
-    <video id="proctorPlayer" controls autoplay style="width:100%;max-height:340px;border-radius:8px;background:#000" src="${data.chunks[0]}"></video>
+    <div style="display:grid;grid-template-columns:${hasScreen?'1fr 1fr':'1fr'};gap:10px">
+      <div>${hasScreen?`<div class="eyebrow" style="margin-bottom:4px">📷 Camera</div>`:''}
+        <video id="proctorPlayerCam" controls autoplay style="width:100%;max-height:320px;border-radius:8px;background:#000" src="${data.chunks[0]}"></video></div>
+      ${hasScreen?`<div><div class="eyebrow" style="margin-bottom:4px">🖥 Screen</div>
+        <video id="proctorPlayerScreen" controls style="width:100%;max-height:320px;border-radius:8px;background:#000" src="${data.screen_chunks[0]}"></video></div>`:''}
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12.5px;color:var(--muted)">
       <span id="proctorClipLabel">Clip 1 of ${data.chunks.length}</span>
       <div style="display:flex;gap:6px">
@@ -3667,31 +3797,26 @@ async function openProctoringReview(sessionId){
         <button class="btn ghost tiny" onclick="_proctorSeek(1)">Next ▶</button>
       </div>
     </div>`;
-  const player=document.getElementById('proctorPlayer');
-  if(player) player.onended = ()=>_proctorSeek(1);
+  const camPlayer=document.getElementById('proctorPlayerCam');
+  if(camPlayer) camPlayer.onended = ()=>_proctorSeek(1);
   const reviewedBtn=document.getElementById('proctorReviewedBtn');
   if(reviewedBtn && !data.reviewed_at) reviewedBtn.style.display='';
 }
-function _proctorSwitchSource(source){
-  if(!window._proctorChunks || !window._proctorChunks[source] || !window._proctorChunks[source].length) return;
-  window._proctorSource = source; window._proctorIdx = 0;
-  const camBtn=document.getElementById('proctorSrcCamera'), scrBtn=document.getElementById('proctorSrcScreen');
-  if(camBtn) camBtn.className = 'btn '+(source==='camera'?'signal':'ghost')+' tiny';
-  if(scrBtn) scrBtn.className = 'btn '+(source==='screen'?'signal':'ghost')+' tiny';
-  const chunks=window._proctorChunks[source];
-  const player=document.getElementById('proctorPlayer');
-  if(player){ player.src=chunks[0]; player.play().catch(()=>{}); }
-  const label=document.getElementById('proctorClipLabel'); if(label) label.textContent='Clip 1 of '+chunks.length;
-}
 function _proctorSeek(delta){
   if(!window._proctorChunks) return;
-  const chunks=window._proctorChunks[window._proctorSource];
+  const camChunks=window._proctorChunks.camera;
   const next = window._proctorIdx + delta;
-  if(next < 0 || next >= chunks.length) return;
+  if(next < 0 || next >= camChunks.length) return;
   window._proctorIdx = next;
-  const player=document.getElementById('proctorPlayer');
-  if(player){ player.src=chunks[next]; player.play().catch(()=>{}); }
-  const label=document.getElementById('proctorClipLabel'); if(label) label.textContent='Clip '+(next+1)+' of '+chunks.length;
+  const camPlayer=document.getElementById('proctorPlayerCam');
+  if(camPlayer){ camPlayer.src=camChunks[next]; camPlayer.play().catch(()=>{}); }
+  const scrChunks=window._proctorChunks.screen;
+  const scrPlayer=document.getElementById('proctorPlayerScreen');
+  if(scrPlayer && scrChunks && scrChunks.length){
+    scrPlayer.src=scrChunks[Math.min(next, scrChunks.length-1)];
+    scrPlayer.play().catch(()=>{});
+  }
+  const label=document.getElementById('proctorClipLabel'); if(label) label.textContent='Clip '+(next+1)+' of '+camChunks.length;
 }
 async function markProctoringReviewed(sessionId){
   try{ await api('/proctoring/sessions/'+sessionId+'/reviewed',{method:'POST'}); toast('Marked reviewed'); closeModal(); }
@@ -3784,7 +3909,7 @@ async function renderProtDocxPreview(){
   try{
     await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js');
     const result=await window.mammoth.convertToHtml({arrayBuffer:window._previewBuf});
-    host.innerHTML=result.value||'<p style="color:var(--muted)">This document appears to be empty.</p>';
+    host.innerHTML=result.value?await _sanitizeCvHtml(result.value):'<p style="color:var(--muted)">This document appears to be empty.</p>';
   }catch(e){
     host.innerHTML='<div class="empty" style="padding:30px 0;text-align:center"><h3>Couldn\'t render preview</h3><p style="color:var(--muted)">Download the file to view it instead.</p></div>';
   }
@@ -4950,16 +5075,13 @@ async function boot(){
   const _q=new URLSearchParams(location.search);
   const _confirm=_q.get('confirm');
   if(_confirm){
-    try{
-      const r=await api('/auth/confirm-email?token='+encodeURIComponent(_confirm),{method:'POST',auth:false});
-      if(r&&r.access_token){ store.token=r.access_token; store.user=r.user; }
-      history.replaceState({},'',location.pathname);
-      toast('Email confirmed — welcome!');
-      go(store.user&&store.user.role==='employer'?'employerJobs':'board'); return;
-    }catch(e){
-      history.replaceState({},'',location.pathname);
-      go('confirmFailed'); return;
-    }
+    // Deliberately does NOT call the API here -- clicking the link only
+    // shows the confirm page; the account isn't actually confirmed until
+    // the person enters their password and submits (ViewConfirmAccount).
+    // Auto-firing on load let email scanners/antivirus that pre-visit
+    // links silently burn the token before the real person ever clicked.
+    history.replaceState({},'',location.pathname);
+    state.view='confirmAccount'; state.params={token:_confirm}; render(); return;
   }
   const _sub=_q.get('subscribe'), _unsub=_q.get('unsubscribe');
   if(_sub){ try{ await api('/alerts/subscribe/'+_sub,{method:'POST',auth:false}); toast('You are subscribed to job alerts'); }catch(e){ toast('Could not update alerts',true); } history.replaceState({},'',location.pathname); }
@@ -5023,7 +5145,7 @@ async function examView(){
     token,
     questions: data.questions||[],
     answers:{}, idx:0,
-    timeLeft:(data.duration_minutes||30)*60, timerId:null,
+    timeLeft:(data.duration_minutes||30)*60, totalSeconds:(data.duration_minutes||30)*60, timerId:null,
     flags:{tab_switches:0, paste_attempts:0, blur_seconds:0, device_access_denied:false, screen_share_declined:false},
     hiddenSince:null, submitted:false, ref:data.candidate_ref, title:data.title
   };
@@ -5219,11 +5341,14 @@ async function finishPreflightAndBegin(){
    not tied to a live exam/attempt. Same checks as the exam pre-flight
    (camera/mic/browser/internet), deliberately without screen-share/
    fullscreen since this isn't a real exam session — see README §5. ---- */
+const CT_ICON_OK='<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" style="fill:var(--go-bg)"/><path d="M6 10.5l2.5 2.5L14 7.5" style="stroke:var(--go)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CT_ICON_FAIL='<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" style="fill:var(--stop-bg)"/><path d="M7 7l6 6M13 7l-6 6" style="stroke:var(--stop)" stroke-width="1.8" stroke-linecap="round"/></svg>';
 function ViewCameraTest(){
   return `<main><div class="wrap" style="max-width:560px">
     <div class="section-head"><div><h2>Test your camera &amp; mic</h2>
       <div class="sub">Check everything works a few days before your assessment, not in the last few minutes before it starts.</div></div></div>
     <div class="card" id="ctCard">
+      <div class="exam-cam-viewfinder" id="ctViewfinder"><span class="ph">📷</span></div>
       <p style="font-size:14px;line-height:1.6;margin:0 0 16px">This checks your camera, microphone, browser, and connection — nothing is recorded or sent anywhere, and closing this page clears everything.</p>
       <button class="btn signal" style="width:100%" onclick="runCameraTest()">Start test</button>
     </div>
@@ -5231,16 +5356,17 @@ function ViewCameraTest(){
 }
 async function runCameraTest(){
   const card=document.getElementById('ctCard'); if(!card) return;
-  card.innerHTML = `<div id="ctRows" style="margin-bottom:16px">
+  card.innerHTML = `<div class="exam-cam-viewfinder" id="ctViewfinder"><video id="ctPreview" autoplay muted playsinline></video></div>
+    <div id="ctRows" style="margin-bottom:6px">
       ${[['camera','Camera'],['mic','Microphone'],['browser','Browser'],['internet','Internet']]
         .map(([k,label])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:14px">
-          <span>${label}</span><span class="pf_status" id="ct_${k}" style="color:var(--muted);font-size:13px">Checking…</span></div>`).join('')}
+          <span>${label}</span><span class="pf_status" id="ct_${k}" style="display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px"><span class="spin-muted"></span>Checking…</span></div>`).join('')}
     </div>
-    <video id="ctPreview" autoplay muted playsinline style="width:100%;max-height:200px;border-radius:8px;background:#000;display:none"></video>
-    <button class="btn ghost" style="width:100%;margin-top:12px" onclick="runCameraTest()">Test again</button>`;
+    <p style="font-size:12.5px;color:var(--muted);line-height:1.6;margin:6px 0 14px">This is just a check — nothing here is recorded, saved, or seen by anyone. The real assessment's consent screen explains exactly what is recorded once you actually start one.</p>
+    <button class="btn ghost" style="width:100%" onclick="runCameraTest()">Test again</button>`;
   function setRow(key, ok, msg){
     const el=document.getElementById('ct_'+key); if(!el) return;
-    el.textContent = ok ? '✓ Ready' : (msg || '✗ Not available');
+    el.innerHTML = (ok?CT_ICON_OK:CT_ICON_FAIL) + '<span>' + esc(ok ? 'Ready' : (msg || 'Not available')) + '</span>';
     el.style.color = ok ? 'var(--go)' : 'var(--stop)';
   }
   const browserOk = !!window.MediaRecorder && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -5249,9 +5375,12 @@ async function runCameraTest(){
     const stream = await navigator.mediaDevices.getUserMedia({video:true, audio:true});
     setRow('camera', true); setRow('mic', true);
     const video=document.getElementById('ctPreview');
-    if(video){ video.srcObject=stream; video.style.display='block'; }
+    if(video){ video.srcObject=stream; }
     // Stopped after a moment, not held open indefinitely — this is a test, not a recording.
-    setTimeout(()=>{ stream.getTracks().forEach(t=>{ try{t.stop();}catch(e){} }); if(video) video.srcObject=null; }, 8000);
+    setTimeout(()=>{ stream.getTracks().forEach(t=>{ try{t.stop();}catch(e){} });
+      if(video) video.srcObject=null;
+      const vf=document.getElementById('ctViewfinder'); if(vf) vf.innerHTML='<span class="ph">📷</span>';
+    }, 8000);
   }catch(e){
     setRow('camera', false, 'Blocked — allow camera access in your browser');
     setRow('mic', false, 'Blocked — allow microphone access in your browser');
@@ -5273,6 +5402,23 @@ async function runCameraTest(){
    after — never held as one growing blob, never saved to the candidate's
    device. See assessment/proctoring/ on the backend. ---- */
 let _examProctor = null; // {sessionId, stream, recorder, queue, pumping, stopped, screenStream, screenRecorder, screenQueue, screenPumping}
+
+/* Small floating self-view once continuous recording is actually running —
+   candidates otherwise never see their own camera again after the consent
+   screen, with no visual confirmation recording is really happening. Purely
+   reassurance: reuses the same live stream startProctoring() already has,
+   nothing new captured or sent anywhere. */
+function _showExamCamThumb(stream){
+  _hideExamCamThumb();
+  const wrap=document.createElement('div');
+  wrap.id='examCamThumb'; wrap.className='exam-cam-thumb';
+  wrap.innerHTML='<video autoplay muted playsinline></video><span class="lbl"><span class="dot"></span>Recording</span>';
+  document.body.appendChild(wrap);
+  wrap.querySelector('video').srcObject=stream;
+}
+function _hideExamCamThumb(){
+  const el=document.getElementById('examCamThumb'); if(el) el.remove();
+}
 async function startProctoring(token){
   if(!_exam || !_exam.data || !_exam.data.requires_consent || _exam._camMicDenied) return;
   try{
@@ -5283,6 +5429,7 @@ async function startProctoring(token){
     const recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:600000});
     _examProctor = {sessionId:start.session_id, stream, recorder, queue:[], pumping:false, stopped:false,
                     screenStream:null, screenRecorder:null, screenQueue:[], screenPumping:false};
+    _showExamCamThumb(stream);
     recorder.ondataavailable = e=>{
       if(e.data && e.data.size && _examProctor && !_examProctor.stopped){
         _examProctor.queue.push(e.data);
@@ -5346,6 +5493,7 @@ async function _pumpProctorQueue(kind){
   if(_examProctor) _examProctor[pumpingKey] = false;
 }
 async function stopProctoring(){
+  _hideExamCamThumb();
   if(!_examProctor) return;
   _examProctor.stopped = true;
   try{
@@ -5385,7 +5533,11 @@ function tickExam(){
   const el=document.getElementById('examTimer'); if(!el) return;
   const t=Math.max(_exam.timeLeft,0);
   el.textContent = String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
-  el.style.background = t<=60 ? '#b3261e' : ''; el.style.color = t<=60 ? '#fff' : '';
+  const pct = _exam.totalSeconds ? t/_exam.totalSeconds : 1;
+  const critical = t<=60 || pct<=0.05;
+  const warn = !critical && pct<=0.2;
+  el.classList.toggle('exam-timer-critical', critical);
+  el.classList.toggle('exam-timer-warn', warn);
 }
  
 /* Incremental per-question autosave — server has whatever's saved here even
@@ -5449,7 +5601,9 @@ function renderExamQuestion(){
   }
   const last = _exam.idx===_exam.questions.length-1;
   const imgHtml = q.image_url ? `<img id="examQImg" style="max-width:100%;border-radius:8px;border:1px solid var(--line);margin:0 0 16px;display:block" alt="Question diagram"/>` : '';
-  card.innerHTML = `<div class="progress" style="font-size:13px;color:var(--muted);margin-bottom:8px">Question ${_exam.idx+1} of ${_exam.questions.length}</div>
+  const segs = _exam.questions.map((_,i)=>`<span class="seg ${i<_exam.idx?'done':i===_exam.idx?'current':''}"></span>`).join('');
+  card.innerHTML = `<div class="exam-progress">${segs}</div>
+    <div class="progress" style="font-size:13px;color:var(--muted);margin-bottom:8px">Question ${_exam.idx+1} of ${_exam.questions.length}</div>
     <div style="font-size:18px;line-height:1.5;margin:6px 0 18px;white-space:pre-wrap">${esc(q.question)}</div>
     ${imgHtml}
     ${ans}
