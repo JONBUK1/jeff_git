@@ -488,7 +488,7 @@ window.CATEGORIES = ["Engineering","Data","Design","Product","Support","Sales","
 
 window.EXPERIENCE_RANGES = ["0–1 years","2–3 years","4–6 years","7–10 years","10+ years"];
 
-window.DEGREE_LEVELS = ["High School","Certificate","Diploma","Associate Degree","HND","OND","Bachelor's Degree","Master's Degree","MBA","MPhil","PhD","Professional Degree","Postgraduate Diploma"];
+window.DEGREE_LEVELS = ["High School","Certificate","Diploma","Associate Degree","OND","HND","Bachelor's Degree","Master's Degree","MBA","MPhil","PhD","Professional Degree","Postgraduate Diploma"];
 
 window.AVAILABILITY_OPTIONS = ["Immediately","Within 1 week","Within 2 weeks","Within 1 month","1–3 months","Not currently available"];
 
@@ -988,12 +988,12 @@ async function directPlanPricingHTML(){
     </div>`;
   }).join('');
   // A separate, clearly distinct plan — not a badge on the Large card — so
-  // there's no ambiguity that Smart AI is billed on its own.
+  // there's no ambiguity that Deep Analysis is billed on its own.
   const largeTier=tiers.large;
   const bundleCard=largeTier?`<div class="card" style="flex:1;min-width:200px;border:1px solid #d9a24f">
-      <div class="eyebrow">✨ Large + Smart AI</div>
+      <div class="eyebrow">✨ Large + Deep Analysis</div>
       <div style="font-size:30px;font-weight:800;margin:8px 0">$${largeTier.monthly+sai.price}<span style="font-size:13px;color:var(--muted);font-weight:500">/mo</span></div>
-      <div class="sub">Large plan ($${largeTier.monthly}) + Smart AI ($${sai.price}), billed together</div>
+      <div class="sub">Large plan ($${largeTier.monthly}) + Deep Analysis ($${sai.price}), billed together</div>
       <div style="margin:12px 0;font-size:14px">${largeTier.slots} active job slots + deeper candidate insights</div>
       <a class="btn signal" style="width:100%;justify-content:center;text-decoration:none;margin-top:12px" href="${checkoutUrl(LARGE_SMART_CHECKOUT)}">Start ${trial}-day trial</a>
     </div>`:'';
@@ -1009,7 +1009,7 @@ async function directPlanPricingHTML(){
       </label>
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <span id="ent_slots_label" class="sub">30 job slots</span>
-        <span id="ent_price" style="font-size:26px;font-weight:800">$199<span style="font-size:13px;color:var(--muted);font-weight:500">/mo</span></span>
+        <span id="ent_price" style="font-size:26px;font-weight:800">$299<span style="font-size:13px;color:var(--muted);font-weight:500">/mo</span></span>
       </div>
       <div id="ent_perks" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">
         <div class="card" style="padding:8px 10px;background:var(--paper-2)"><div class="sub" style="font-size:11px;margin-bottom:2px">Team seats</div><div id="ent_seats" style="font-weight:700">5</div></div>
@@ -1027,8 +1027,8 @@ async function directPlanPricingHTML(){
   const enterprise=`<div class="card" style="flex:1;min-width:260px">
     <div class="eyebrow">Enterprise</div>
     <div style="font-size:16px;font-weight:700;margin:6px 0">More than 25 roles at once?</div>
-    <div class="sub">Priced automatically by volume — the more slots, the lower the per-slot cost. Everything in Large, plus priority support, an account contact, and Smart AI included at no extra cost.</div>
-    <div class="chip" style="background:#f1e8d8;color:#8a6a1f;margin-top:6px">✨ Smart AI included</div>
+    <div class="sub">Priced automatically by volume — the more slots, the lower the per-slot cost. Everything in Large, plus priority support, an account contact, and Deep Analysis included at no extra cost.</div>
+    <div class="chip" style="background:#f1e8d8;color:#8a6a1f;margin-top:6px">✨ Deep Analysis included</div>
     ${entSelfServe}
   </div>`;
   return `<div style="display:flex;gap:16px;flex-wrap:wrap">${cards}${bundleCard}</div>
@@ -1045,8 +1045,8 @@ async function ViewPricing(){
       <h3 style="font-size:19px;margin-top:6px">Post your own roles and run your own funnel</h3>
       <div class="sub">Renews automatically until you cancel; cancel anytime.</div></div></div>
     <div class="card" style="border:1px solid var(--signal);background:linear-gradient(180deg,rgba(63,169,129,0.08),transparent)">
-      <h3 style="font-size:18px;margin:0 0 4px">Small, Medium, Large, Large + Smart AI &amp; Enterprise</h3>
-      <p class="sub" style="margin:0 0 14px">Every candidate gets one clear 0–100 match score — built from skills, experience, qualifications and location — with a transparent breakdown of how it was earned. That engine is free and identical at every tier. Smart AI layers deeper, AI-reviewed candidate insights on top: an add-on on Large, included automatically on Enterprise.</p>
+      <h3 style="font-size:18px;margin:0 0 4px">Small, Medium, Large, Large + Deep Analysis &amp; Enterprise</h3>
+      <p class="sub" style="margin:0 0 14px">Every candidate gets one clear 0–100 match score — built from skills, experience, qualifications and location — with a transparent breakdown of how it was earned. That engine is free and identical at every tier. Deep Analysis layers deeper, thoroughly-reviewed candidate insights on top: an add-on on Large, included automatically on Enterprise.</p>
       <button class="btn signal" onclick="go('directPlan')">Preview Direct Plan</button>
     </div>
 
@@ -1065,7 +1065,7 @@ async function ViewPricing(){
 /* ===== DIRECT PLAN — capability panel, blurred until the subscription is active ===== */
 const DIRECT_PLAN_COLS=[
   {key:'small',label:'Small'},{key:'medium',label:'Medium'},{key:'large',label:'Large'},
-  {key:'large_smart_ai',label:'Large + Smart AI'},{key:'enterprise',label:'Enterprise'},
+  {key:'large_smart_ai',label:'Large + Deep Analysis'},{key:'enterprise',label:'Enterprise'},
 ];
 const DIRECT_PLAN_ROWS=[
   {label:'Active vacancies',small:'3',medium:'10',large:'25',large_smart_ai:'25',enterprise:'Custom'},
@@ -1074,7 +1074,13 @@ const DIRECT_PLAN_ROWS=[
   {label:'Score explanation',small:'Basic',medium:'Detailed',large:'Detailed',large_smart_ai:'Detailed',enterprise:'Custom'},
   {label:'Recruitment analytics',small:'Basic',medium:'Advanced',large:'Advanced',large_smart_ai:'Advanced',enterprise:'Enterprise'},
   {label:'Team seats',small:'—',medium:'1 seat',large:'2 seats',large_smart_ai:'3 seats',enterprise:'Custom'},
-  {label:'✨ Smart AI — deeper candidate insights',small:'—',medium:'—',large:'—',large_smart_ai:'Included',enterprise:'Included'},
+  {label:'✨ Deep Analysis — deeper candidate insights',small:'—',medium:'—',large:'—',large_smart_ai:'Included',enterprise:'Included'},
+  {label:'Exams & assessments',small:'Included',medium:'Included',large:'Included',large_smart_ai:'Included',enterprise:'Included'},
+  {label:'Monitored exam sessions',small:'Pay-per-use',medium:'Pay-per-use',large:'Pay-per-use',large_smart_ai:'Pay-per-use',enterprise:'Pay-per-use'},
+  {label:'Free assessment credits/mo',small:'5',medium:'20',large:'50',large_smart_ai:'100',enterprise:'150'},
+  {label:'Deep review coverage',small:'20 candidates',medium:'40 candidates',large:'80 candidates',large_smart_ai:'100 candidates',enterprise:'50%'},
+  {label:'Interview report depth',small:'Standard',medium:'Advanced',large:'Advanced',large_smart_ai:'Senior',enterprise:'Premium'},
+  {label:'Live coding',small:'Pay-per-use',medium:'Pay-per-use',large:'Pay-per-use',large_smart_ai:'Pay-per-use',enterprise:'Pay-per-use'},
 ];
 function directPlanTableHTML(tier,smartAi){
   const myCol=tier==='large'?(smartAi?'large_smart_ai':'large'):(tier||null);
@@ -1094,11 +1100,11 @@ async function ViewDirectPlan(){
     ? `<span class="status st-active"><span class="dot"></span>${esc(feat.name||tier)} · ${feat.slots_used||0}/${feat.slots_total||0} job slots</span>`
     : `<span class="status"><span class="dot"></span>No active plan</span>`;
   const smartBadge=active?(feat.smart_ai
-      ? `<span class="chip" style="background:#f1e8d8;color:#8a6a1f;margin-left:8px">✨ Smart AI active</span>`
+      ? `<span class="chip" style="background:#f1e8d8;color:#8a6a1f;margin-left:8px">✨ Deep Analysis active</span>`
       : feat.smart_ai_purchasable
         ? (SMART_AI_ADDON_CHECKOUT==='#'
-            ? `<span class="chip" style="margin-left:8px">Smart AI not yet added — <a href="#" onclick="go('contact',{subject:'Add Smart AI'});return false" style="color:var(--signal)">contact us</a></span>`
-            : `<a href="${checkoutUrl(SMART_AI_ADDON_CHECKOUT)}" class="chip" style="margin-left:8px;text-decoration:none;cursor:pointer">✨ Add Smart AI — $60/mo</a>`)
+            ? `<span class="chip" style="margin-left:8px">Deep Analysis not yet added — <a href="#" onclick="go('contact',{subject:'Add Deep Analysis'});return false" style="color:var(--signal)">contact us</a></span>`
+            : `<a href="${checkoutUrl(SMART_AI_ADDON_CHECKOUT)}" class="chip" style="margin-left:8px;text-decoration:none;cursor:pointer">✨ Add Deep Analysis — $60/mo</a>`)
         : '') : '';
   const pricing=await directPlanPricingHTML();
   const table=directPlanTableHTML(tier,!!feat.smart_ai);
@@ -2502,13 +2508,14 @@ const PROFILE_TAG_OPTIONS={
   tools:window.JOB_TOOLS,
   emp_skills:window.JOB_SKILLS,
   emp_tools:window.JOB_TOOLS,
+  job_skills:window.JOB_SKILLS,
   job_tools:window.JOB_TOOLS,
   categories:CATEGORIES.slice(),
   al_categories:CATEGORIES.slice(),
   languages:window.LANGUAGES.slice(),
   job_languages:window.LANGUAGES.slice()
 };
-const TAG_MAX={skills:5,tools:5,emp_skills:Infinity,emp_tools:Infinity,job_tools:Infinity,categories:3,al_categories:3,languages:5,job_languages:5};
+const TAG_MAX={skills:5,tools:5,emp_skills:Infinity,emp_tools:Infinity,job_skills:Infinity,job_tools:Infinity,categories:3,al_categories:3,languages:5,job_languages:5};
 const SELECT_TAG_KINDS=new Set(['categories','al_categories','languages','job_languages']);
 function categoryPicker(kind,label){const tags=_profileTags[kind]||[];const max=TAG_MAX[kind]??3;const options=(PROFILE_TAG_OPTIONS[kind]||[]).filter(x=>!tags.includes(x));const full=tags.length>=max;return `<div class="fld"><span class="lab">${label} <span class="hint">(up to ${max})</span></span><div class="skills" id="${kind}_tags">${tags.map(t=>`<span class="skill">${esc(t)} <button type="button" class="linkbtn" onclick='removeTag(${JSON.stringify(kind)},${JSON.stringify(t)})' aria-label="Remove ${esc(t)}">×</button></span>`).join('')}</div><select class="input" id="${kind}_input" ${full?'disabled':''} onchange="if(this.value)addTag('${kind}',this.value)"><option value="">${full?'Maximum reached':'Select a category…'}</option>${options.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select></div>`;}
 function refreshCategorySelect(kind){const sel=$('#'+kind+'_input');if(!sel||sel.tagName!=='SELECT')return;const tags=_profileTags[kind]||[];const max=TAG_MAX[kind]??3;const options=(PROFILE_TAG_OPTIONS[kind]||[]).filter(x=>!tags.includes(x));const full=tags.length>=max;sel.disabled=full;sel.innerHTML=`<option value="">${full?'Maximum reached':'Select a category…'}</option>`+options.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');}
@@ -2972,7 +2979,7 @@ function empJobRow(j,i){const pay=formatPay(j);const sn=(i!=null)?(i+1)+'. ':'';
   const titleArg=JSON.stringify(String(j.title||'')).replace(/'/g,'&#39;');
   const actions = j.archived
     ? `<button class="btn ghost sm" onclick='openShortlist(${j.id},${titleArg})'>View shortlist →</button><button class="btn ghost sm" onclick="restoreJob(${j.id})">Restore</button>`
-    : `<button class="btn ghost sm" onclick='openShortlist(${j.id},${titleArg})'>View shortlist →</button><button class="btn ghost sm" onclick='editJob(${JSON.stringify(j)})'>Edit</button>${openNow?`<button class="btn ghost sm" onclick="closeJob(${j.id})">Close</button>`:`<button class="btn ghost sm" onclick="reopenJob(${j.id})">Reopen</button>`}<button class="btn ghost sm" onclick="archiveJob(${j.id})">Delete</button>`;
+    : `<button class="btn ghost sm" onclick='openShortlist(${j.id},${titleArg})'>View shortlist →</button><button class="btn ghost sm" onclick="editJob(${j.id})">Edit</button>${openNow?`<button class="btn ghost sm" onclick="closeJob(${j.id})">Close</button>`:`<button class="btn ghost sm" onclick="reopenJob(${j.id})">Reopen</button>`}<button class="btn ghost sm" onclick="archiveJob(${j.id})">Delete</button>`;
   return `<div class="job" style="cursor:default"><div onclick='openShortlist(${j.id},${titleArg})' style="cursor:pointer">
     <div class="jt">${sn}${esc(j.title)}</div><div class="jmeta">${pay?`<span class="pay">${pay}</span>`:''}<span>${terms}</span>${badge}${closeInfo}</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${actions}</div></div>`;
@@ -3177,7 +3184,7 @@ async function submitPahOffer(pipelineId){
 }
 async function restoreJob(id){try{await api('/jobs/'+id+'/restore',{method:'PATCH'});toast('Job restored');render();}catch(e){toast(e.message,true);}}
 let _editJob=null;
-function editJob(j){ _editJob=j; go('postJob'); }
+function editJob(id){ _editJob=(window._empJobs||[]).find(j=>j.id===id)||null; go('postJob'); }
 
 /* ===== ENTERPRISE TEAM ===== */
 async function ViewTeam(){
@@ -3249,8 +3256,19 @@ function ViewPostJob(){
   const _isStaffPoster=store.user.role!=='employer';
   const savedDraft=!_editJob?loadDraft('job','current'):null;
   const e=_editJob||savedDraft; const v=(x)=>e&&e[x]!=null?esc(String(e[x])):'';
-  let _prefillSkills='';
-  if(!e && store.user.employer_skills){ try{ const es=JSON.parse(store.user.employer_skills); if(Array.isArray(es)&&es.length)_prefillSkills=es.join(', '); }catch(err){} }
+  // required_skills predates this session and has always been stored as a
+  // plain comma-separated string (never JSON) — unlike required_tools below,
+  // which was built fresh as JSON from the start. JSON.parse would throw and
+  // silently wipe an existing job's skills when editing, so fall back to a
+  // comma-split for anything that isn't valid JSON, rather than treating a
+  // parse failure as "no skills".
+  if(e&&e.required_skills){
+    try{ const p=JSON.parse(e.required_skills); _profileTags.job_skills=Array.isArray(p)?p:[]; }
+    catch(err){ _profileTags.job_skills=e.required_skills.split(',').map(s=>s.trim()).filter(Boolean); }
+  } else if(!e && store.user.employer_skills){
+    try{ const p=JSON.parse(store.user.employer_skills); _profileTags.job_skills=Array.isArray(p)?p:[]; }
+    catch(err){ _profileTags.job_skills=[]; }
+  } else { _profileTags.job_skills=[]; }
   try{_profileTags.job_tools=JSON.parse((e&&e.required_tools)||'null')||(!e&&JSON.parse(store.user.employer_tools||'[]'))||[];}catch(err){_profileTags.job_tools=[];}
   if(!Array.isArray(_profileTags.job_tools))_profileTags.job_tools=[];
   try{_profileTags.job_languages=JSON.parse((e&&e.required_languages)||'[]');}catch(err){_profileTags.job_languages=[];}
@@ -3276,23 +3294,31 @@ function ViewPostJob(){
         </div>`:''}
       <label class="fld"><span class="lab">Title</span><input class="input" id="jtitle" value="${v('title')}" placeholder="Senior Backend Engineer (Python)"/></label>
       <label class="fld"><span class="lab">Description</span><textarea class="textarea" id="jdesc" style="min-height:130px">${v('description')}</textarea></label>
-      <div class="row2"><label class="fld"><span class="lab">Required skills <span class="hint">(comma separated)</span></span><input class="input" id="jskills" value="${v('required_skills')||_prefillSkills}" placeholder="python, fastapi, postgresql"/></label>
-        <label class="fld"><span class="lab">Location</span><input class="input" id="jloc" value="${v('location')||'Remote'}"/></label></div>
-      ${_isStaffPoster?`<label class="fld"><span class="lab">Company name <span class="hint">(the company this role is for)</span></span><input class="input" id="jcompany" value="${v('company_name')}" placeholder="e.g. Acme Corp"/></label>`:''}
-      ${tagPicker('job_tools','Required tools')}
-      <div class="row2"><label class="fld"><span class="lab">Other required skills <span class="hint">(optional, read by our AI)</span></span><input class="input" id="jotherskills" placeholder="e.g. Stakeholder management, public speaking" value="${v('other_required_skills')}"/></label>
-        <label class="fld"><span class="lab">Other required tools <span class="hint">(optional, read by our AI)</span></span><input class="input" id="jothertools" placeholder="e.g. Zendesk plugin, internal CRM" value="${v('other_required_tools')}"/></label></div>
-      <div class="row2">
-        <label class="fld"><span class="lab">Minimum years of experience <span class="hint">(optional)</span></span><select id="jminexp"><option value="">— no minimum —</option>${window.EXPERIENCE_RANGES.map(x=>`<option value="${esc(x)}" ${(e&&e.min_experience_range===x)?'selected':''}>${x}</option>`).join('')}</select></label>
-        <label class="fld"><span class="lab">Minimum degree level <span class="hint">(optional)</span></span><select id="jmindeg"><option value="">— no minimum —</option>${window.DEGREE_LEVELS.map(x=>`<option value="${esc(x)}" ${(e&&e.min_degree_level===x)?'selected':''}>${x}</option>`).join('')}</select></label>
+      <div style="border-top:1px solid var(--line);margin:18px 0 14px;padding-top:16px">
+        <div class="eyebrow" style="margin-bottom:10px">What this role needs</div>
+        ${tagPicker('job_skills','Required skills')}
+        ${tagPicker('job_tools','Required tools')}
+        <div class="row2"><label class="fld"><span class="lab">Other required skills <span class="hint">(optional, read by our AI)</span></span><input class="input" id="jotherskills" placeholder="e.g. Stakeholder management, public speaking" value="${v('other_required_skills')}"/></label>
+          <label class="fld"><span class="lab">Other required tools <span class="hint">(optional, read by our AI)</span></span><input class="input" id="jothertools" placeholder="e.g. Zendesk plugin, internal CRM" value="${v('other_required_tools')}"/></label></div>
+        <div class="row2">
+          <label class="fld"><span class="lab">Minimum years of experience <span class="hint">(optional)</span></span><select id="jminexp"><option value="">— no minimum —</option>${window.EXPERIENCE_RANGES.map(x=>`<option value="${esc(x)}" ${(e&&e.min_experience_range===x)?'selected':''}>${x}</option>`).join('')}</select></label>
+          <label class="fld"><span class="lab">Minimum degree level <span class="hint">(optional)</span></span><select id="jmindeg"><option value="">— no minimum —</option>${window.DEGREE_LEVELS.map(x=>`<option value="${esc(x)}" ${(e&&e.min_degree_level===x)?'selected':''}>${x}</option>`).join('')}</select></label>
+        </div>
+        ${categoryPicker('job_languages','Required languages')}
+        <label class="fld"><span class="lab">Certifications / qualifications required <span class="hint">(optional, read by our AI)</span></span><textarea class="textarea" id="jcerts" placeholder="e.g. AWS Certified, PMP, relevant license">${v('required_certifications')}</textarea></label>
       </div>
-      ${categoryPicker('job_languages','Required languages')}
-      <label class="fld"><span class="lab">Certifications / qualifications required <span class="hint">(optional, read by our AI)</span></span><textarea class="textarea" id="jcerts" placeholder="e.g. AWS Certified, PMP, relevant license">${v('required_certifications')}</textarea></label>
-      <div class="row2">
-        <label class="fld"><span class="lab">Category</span><select id="jcat">${CATEGORIES.map(cat=>`<option value="${cat}"${(e&&e.category===cat)?' selected':''}>${cat}</option>`).join('')}</select></label>
-        <label class="fld"><span class="lab">Level</span><select id="jlevel">${['','Senior','Mid level','Junior','Intern'].map(lv=>`<option value="${lv}"${(e&&e.level===lv)?' selected':''}>${lv||'— select —'}</option>`).join('')}</select></label>
+      <div style="border-top:1px solid var(--line);margin:18px 0 14px;padding-top:16px">
+        <div class="eyebrow" style="margin-bottom:10px">Where &amp; how it's classified</div>
+        ${_isStaffPoster?`<div class="row2">
+          <label class="fld"><span class="lab">Location</span><input class="input" id="jloc" value="${v('location')||'Remote'}"/></label>
+          <label class="fld"><span class="lab">Company name <span class="hint">(the company this role is for)</span></span><input class="input" id="jcompany" value="${v('company_name')}" placeholder="e.g. Acme Corp"/></label>
+        </div>`:`<label class="fld"><span class="lab">Location</span><input class="input" id="jloc" value="${v('location')||'Remote'}"/></label>`}
+        <div class="row2">
+          <label class="fld"><span class="lab">Category</span><select id="jcat">${CATEGORIES.map(cat=>`<option value="${cat}"${(e&&e.category===cat)?' selected':''}>${cat}</option>`).join('')}</select></label>
+          <label class="fld"><span class="lab">Level</span><select id="jlevel">${['','Senior','Mid level','Junior','Intern'].map(lv=>`<option value="${lv}"${(e&&e.level===lv)?' selected':''}>${lv||'— select —'}</option>`).join('')}</select></label>
+        </div>
+        <label class="fld"><span class="lab">Employment type</span><select id="jtype">${['','Full-time','Part-time','Contract','Freelance','Internship'].map(t=>`<option value="${t}"${(e&&e.employment_type===t)?' selected':''}>${t||'— select —'}</option>`).join('')}</select></label>
       </div>
-      <label class="fld"><span class="lab">Employment type</span><select id="jtype">${['','Full-time','Part-time','Contract','Freelance','Internship'].map(t=>`<option value="${t}"${(e&&e.employment_type===t)?' selected':''}>${t||'— select —'}</option>`).join('')}</select></label>
       <div class="row3">
         <label class="fld"><span class="lab">Pay min</span><input class="input" id="jpmin" type="number" value="${v('pay_min')}" placeholder="60000"/></label>
         <label class="fld"><span class="lab">Pay max <span class="hint">(optional)</span></span><input class="input" id="jpmax" type="number" value="${v('pay_max')}" placeholder="90000"/></label>
@@ -3314,6 +3340,7 @@ function ViewPostJob(){
       </div>
       <label class="fld"><span class="lab">Benefits <span class="hint">(health, retirement, PTO, equity...)</span></span><textarea class="textarea" id="jbenefits" placeholder="Health insurance, 401(k) match, 20 days PTO, equity">${v('benefits')}</textarea></label>
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:14px"><input type="checkbox" id="jvisa" ${e&&e.visa_sponsorship?'checked':''}/> Visa sponsorship available</label>
+      <label class="fld"><span class="lab">Application notifications <span class="hint">(how often you're emailed about new applicants — change anytime)</span></span><select id="jnotifreq">${[['instant','Instant — an email per application'],['daily','Daily digest'],['weekly','Weekly digest'],['monthly','Monthly digest']].map(([val,label])=>`<option value="${val}"${(e&&e.notification_frequency===val)||(!e&&val==='instant')?' selected':''}>${label}</option>`).join('')}</select></label>
       <label class="fld"><span class="lab">Closing date <span class="hint">(optional — leave blank to stay open until you close it)</span></span><input class="input" id="jcloses" type="date" value="${cdv}"/></label>
       <label class="fld"><span class="lab">Screening question 1 <span class="hint">(required)</span></span><input class="input" id="jq1" value="${v('question1')}"/></label>
       <label class="fld"><span class="lab">Screening question 2 <span class="hint">(optional)</span></span><input class="input" id="jq2" value="${v('question2')}"/></label>
@@ -3329,9 +3356,10 @@ function togglePahFields(){
 }
 function saveJobDraft(silent){
   const val=id=>{const el=$(id);return el?el.value:'';};
-  const fields={title:val('#jtitle'),description:val('#jdesc'),required_skills:val('#jskills'),location:val('#jloc'),company_name:val('#jcompany'),category:val('#jcat'),level:val('#jlevel'),employment_type:val('#jtype'),pay_min:val('#jpmin'),pay_max:val('#jpmax'),currency:val('#jcur'),pay_period:val('#jperiod'),hours_per_week:val('#jhours'),timezone:val('#jtz'),remote_scope:val('#jscope'),remote_countries:val('#jcountries'),benefits:val('#jbenefits'),question1:val('#jq1'),question2:val('#jq2'),question3:val('#jq3'),question4:val('#jq4'),question5:val('#jq5'),closes_at:val('#jcloses'),visa_sponsorship:$('#jvisa')&&$('#jvisa').checked,
+  const fields={title:val('#jtitle'),description:val('#jdesc'),required_skills:JSON.stringify(_profileTags.job_skills||[]),location:val('#jloc'),company_name:val('#jcompany'),category:val('#jcat'),level:val('#jlevel'),employment_type:val('#jtype'),pay_min:val('#jpmin'),pay_max:val('#jpmax'),currency:val('#jcur'),pay_period:val('#jperiod'),hours_per_week:val('#jhours'),timezone:val('#jtz'),remote_scope:val('#jscope'),remote_countries:val('#jcountries'),benefits:val('#jbenefits'),question1:val('#jq1'),question2:val('#jq2'),question3:val('#jq3'),question4:val('#jq4'),question5:val('#jq5'),closes_at:val('#jcloses'),visa_sponsorship:$('#jvisa')&&$('#jvisa').checked,
     required_tools:JSON.stringify(_profileTags.job_tools||[]),other_required_skills:val('#jotherskills'),other_required_tools:val('#jothertools'),
-    min_experience_range:val('#jminexp'),min_degree_level:val('#jmindeg'),required_languages:JSON.stringify(_profileTags.job_languages||[]),required_certifications:val('#jcerts')};
+    min_experience_range:val('#jminexp'),min_degree_level:val('#jmindeg'),required_languages:JSON.stringify(_profileTags.job_languages||[]),required_certifications:val('#jcerts'),
+    notification_frequency:val('#jnotifreq')};
   saveDraft('job','current',fields); if(!silent)toast('Job draft saved');
 }
 function subscribeToPostModal(){
@@ -3344,7 +3372,7 @@ function subscribeToPostModal(){
 }
 async function submitJob(){
   const g=id=>$(id).value.trim();
-  const body={title:g('#jtitle'),description:g('#jdesc'),required_skills:g('#jskills'),location:g('#jloc')||'Remote',
+  const body={title:g('#jtitle'),description:g('#jdesc'),required_skills:JSON.stringify(_profileTags.job_skills||[]),location:g('#jloc')||'Remote',
     category:($('#jcat')?$('#jcat').value:''),
     level:($('#jlevel')?$('#jlevel').value:'')||null,
     employment_type:($('#jtype')?$('#jtype').value:'')||null,
@@ -3359,6 +3387,7 @@ async function submitJob(){
   body.min_experience_range=$('#jminexp').value||null; body.min_degree_level=$('#jmindeg').value||null;
   body.required_languages=JSON.stringify(_profileTags.job_languages||[]);
   body.required_certifications=g('#jcerts');
+  body.notification_frequency=$('#jnotifreq').value||'instant';
   const cd=$('#jcloses').value; if(cd){ body.closes_at = new Date(cd+'T23:59:59Z').toISOString(); }
   const servtypeEl=document.querySelector('input[name="jservtype"]:checked');
   const wantsPah=servtypeEl&&servtypeEl.value==='pay_as_you_hire';
@@ -3763,11 +3792,17 @@ function adminNav(u){
     <div class="grp">Overview</div>
     ${item('overview','Dashboard',false,'◆')}
     ${item('time','My work time',false,'◷')}
-    ${['support','assessment','Hr','manager','super_admin'].includes(u.role)?`<div class="grp">People</div>${item('candidates','Candidates',false,'☺')}${item('employers','Employers',false,'▣')}`:''}
-    ${item('applications','Applications',false,'☰')}
+    ${(()=>{
+      const canViewUsers=['support','engineer','assessment','Hr','manager','super_admin'].includes(u.role);
+      const canViewEmployers=canViewUsers||u.role==='finance';
+      if(!canViewEmployers) return '';
+      return `<div class="grp">People</div>${canViewUsers?item('candidates','Candidates',false,'☺'):''}${item('employers','Employers',false,'▣')}`;
+    })()}
+    ${['support','engineer','assessment','Hr','manager','super_admin'].includes(u.role)?item('applications','Applications',false,'☰'):''}
     ${['assessment','Hr','manager','super_admin'].includes(u.role)?item('payonhire','Forward candidates · Pay-As-You-Hire',false,'⇄'):''}
     ${canPostJob?`<button onclick="go('employerJobs')"><span class="ic">▤</span>My jobs</button><button onclick="_editJob=null;go('postJob')"><span class="ic">+</span>Post a job</button>`:''}
     <div class="grp">Care</div>
+    ${item('mailbox','Mailbox',false,'✎')}
     ${item('enquiries','Enquiries',false,'✉')}
     ${item('ratings','Ratings & Feedback',false,'★')}
     ${canMoney?`<div class="grp">Money</div>${item('subs','Subscriptions',false,'◈')}`:''}
@@ -3804,6 +3839,7 @@ async function renderAdminPanel(){
     if(p==='employers')return void(host.innerHTML=await panelPeople('employers'));
     if(p==='applications')return void(host.innerHTML=await panelByJob());
     if(p==='payonhire')return void(host.innerHTML=await panelForward());
+    if(p==='mailbox')return void(host.innerHTML=await panelMailbox());
     if(p==='enquiries')return void(host.innerHTML=await panelEnquiries());
     if(p==='subs')return void(host.innerHTML=await panelSubs());
     if(p==='policyReviews')return void(host.innerHTML=await panelPolicyReviews());
@@ -3859,7 +3895,7 @@ async function panelPeople(kind){
     <table><thead><tr><th>SN</th><th>Profile</th><th>User ID</th><th>Name</th><th>Email</th>${kind==='employers'?'<th>Company</th>':''}<th>Verification</th><th></th></tr></thead><tbody>
     ${rows.map((r,i)=>`<tr><td class="mono">${String(page*DASH_PAGE_SIZE+i+1).padStart(2,'0')}</td><td>${r.has_photo?`<img class="avatar" src="${store.api}/media/photo/${r.id}?t=${Date.now()}" alt="${esc(r.full_name)} profile photo" onerror="this.style.display='none'"/>`:'<div class="avatarinit" style="width:40px;height:40px;font-size:15px">'+esc((r.full_name||'?').charAt(0).toUpperCase())+'</div>'}</td><td class="mono" style="font-size:12px;color:var(--muted)">${esc(r.ref_code||('#'+r.id))}</td><td><b>${esc(r.full_name)}</b></td><td class="mono" style="font-size:12px;color:var(--muted)">${esc(r.email)}</td>${kind==='employers'?`<td>${esc(r.company_name||'—')}</td>`:''}
       <td><span class="status st-${vClass(r.verification_status)}"><span class="dot"></span>${vLabel(r.verification_status)}</span></td>
-      <td style="text-align:right;white-space:nowrap">${r.has_photo?`<button class="btn ghost tiny" onclick="removeUserPhoto(${r.id})">Remove photo</button> `:''}${r.verification_status!=='approved'&&canVerify?`<button class="btn tiny" onclick="verifyUser(${r.id})">Verify</button> `:''}${canVerify?`<button class="btn ghost tiny" onclick="askSuspend(${r.id},${JSON.stringify(esc(r.full_name))})">Suspend</button> `:''}<button class="btn ghost tiny" onclick="userProfile(${r.id})">Profile</button> <button class="btn ghost tiny" onclick='msgUser(${esc(JSON.stringify(r.email))},${esc(JSON.stringify(r.full_name))})'>Message</button></td></tr>`).join('')}
+      <td style="text-align:right;white-space:nowrap">${r.has_photo?`<button class="btn ghost tiny" onclick="removeUserPhoto(${r.id})">Remove photo</button> `:''}${r.verification_status!=='approved'&&canVerify?`<button class="btn tiny" onclick="verifyUser(${r.id})">Verify</button> `:''}${canVerify?`<button class="btn ghost tiny" onclick="askSuspend(${r.id},${esc(JSON.stringify(r.full_name))})">Suspend</button> `:''}<button class="btn ghost tiny" onclick="userProfile(${r.id})">Profile</button> <button class="btn ghost tiny" onclick='msgUser(${esc(JSON.stringify(r.email))},${esc(JSON.stringify(r.full_name))})'>Message</button></td></tr>`).join('')}
     </tbody></table>${pagerHTML(page,pages,`peoplePage('${kind}',${page-1})`,`peoplePage('${kind}',${page+1})`)}</div>`;
 }
 let _prPage=0; let _prFilter='pending';
@@ -3990,8 +4026,8 @@ async function removeUserPhoto(id){
 function msgUser(email,name){
   $('#modal').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
     <div class="eyebrow">Message user</div>
-    <h3 style="font-size:19px;margin:6px 0 4px">Email ${name}</h3>
-    <div class="mono" style="font-size:12px;color:var(--muted);margin-bottom:12px">${email}</div>
+    <h3 style="font-size:19px;margin:6px 0 4px">Email ${esc(name)}</h3>
+    <div class="mono" style="font-size:12px;color:var(--muted);margin-bottom:12px">${esc(email)}</div>
     <div id="msgerr" style="color:var(--stop);font-size:13px;margin-bottom:8px;display:none"></div>
     <label class="fld"><span class="lab">Subject</span><input class="input" id="msgsubj"/></label>
     <label class="fld"><span class="lab">Message</span><textarea class="textarea" id="msgbody" placeholder="Type your message…"></textarea></label>
@@ -4008,7 +4044,7 @@ async function sendMsgUser(email){
 function askSuspend(id,name){
   $('#modal').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
     <div class="eyebrow" style="color:var(--stop)">Suspend account</div>
-    <h3 style="font-size:19px;margin:6px 0 8px">Suspend ${name}?</h3>
+    <h3 style="font-size:19px;margin:6px 0 8px">Suspend ${esc(name)}?</h3>
     <p style="color:var(--muted);font-size:13.5px;margin:0 0 12px">They won't be able to sign in until reactivated. Add a reason for the record.</p>
     <label class="fld"><span class="lab">Reason</span><input class="input" id="suspreason" placeholder="e.g. Fraudulent postings"/></label>
     <label style="display:flex;align-items:center;gap:8px;margin:4px 0 12px;font-size:13.5px"><input type="checkbox" id="suspabuse"/> Also flag as abuse/fraud (kept after deletion)</label>
@@ -4059,6 +4095,8 @@ async function panelForward(){
   if(pahConfig.configured){
     try{ (await api('/pah/admin/jobs/'+_fwdJobId+'/candidates')||[]).forEach(r=>{ pahByRef[r.ref]=r; }); }catch(e){}
   }
+  let jobDetail={};
+  try{ jobDetail=await api('/jobs/'+_fwdJobId); }catch(e){}
   const canHr=['Hr','manager','super_admin'].includes(u.role);
   const canAssess=['assessment','super_admin'].includes(u.role);
   const pages=Math.max(1,Math.ceil(all.length/DASH_PAGE_SIZE)); _fwdRankPage=Math.min(_fwdRankPage,pages-1);
@@ -4074,9 +4112,30 @@ async function panelForward(){
         </div>
       </div>
     </div>`;
+  const capStrip=`<div class="card" style="margin:0 0 14px;background:#fafafa">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div><b>LLM-grading top cap</b> <span class="hint">— staff-posted or PAH jobs only; ${esc(String(jobDetail.llm_assist_cap_override||'not set — auto/tier default applies'))}</span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="input" id="llmCapInput" style="width:110px" placeholder="e.g. 60 or 70%" value="${esc(jobDetail.llm_assist_cap_override||'')}"/>
+        <button class="btn ghost tiny" onclick="saveLlmCapOverride(${_fwdJobId})">Set</button>
+        <button class="btn ghost tiny" onclick="clearLlmCapOverride(${_fwdJobId})">Clear</button>
+      </div>
+    </div>
+  </div>`;
+  const notifStrip=`<div class="card" style="margin:0 0 14px;background:#fafafa">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div><b>Application notifications</b> <span class="hint">— override on behalf of the poster, any job</span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select class="input" id="notifFreqInput" style="width:170px">${[['instant','Instant'],['daily','Daily digest'],['weekly','Weekly digest'],['monthly','Monthly digest']].map(([val,label])=>`<option value="${val}"${(jobDetail.notification_frequency||'instant')===val?' selected':''}>${label}</option>`).join('')}</select>
+        <button class="btn ghost tiny" onclick="saveNotificationFrequencyOverride(${_fwdJobId})">Set</button>
+      </div>
+    </div>
+  </div>`;
   return `<div class="card">
     <button class="btn ghost sm" style="margin-bottom:12px" onclick="backFwd()">← Back to jobs</button>
     ${pahStrip}
+    ${capStrip}
+    ${notifStrip}
     <h3 style="font-size:17px;margin-bottom:6px">Assessment ranking — job #${_fwdJobId} <span style="color:var(--muted);font-weight:500">(${all.length})</span></h3>
     <p style="color:var(--muted);font-size:13px;margin:0 0 6px">Select candidates, then forward. <span id="fwdcount">${Object.keys(_fwdSel).length} selected</span></p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
@@ -4097,6 +4156,30 @@ async function doForward(target){
 // ===== Pay-As-You-Hire (merged into "Forward candidates" above — these are its action helpers) =====
 async function lockPahJob(jobId){ try{await api('/pah/admin/jobs/'+jobId+'/lock',{method:'POST'});toast('Sourcing locked');renderAdminPanel();}catch(e){toast(e.message,true);} }
 async function unlockPahJob(jobId){ try{await api('/pah/admin/jobs/'+jobId+'/unlock',{method:'POST'});toast('Sourcing unlocked');renderAdminPanel();}catch(e){toast(e.message,true);} }
+async function saveLlmCapOverride(jobId){
+  const el=$('#llmCapInput'); if(!el) return;
+  const val=el.value.trim();
+  try{
+    const r=await api('/jobs/'+jobId+'/llm-cap-override',{method:'PATCH',body:{value:val||null}});
+    toast('LLM-grading cap updated: '+(r.llm_assist_cap_override||'cleared'));
+    const h=$('#apanel'); if(h) h.innerHTML=await panelForward();
+  }catch(e){ toast(e.message||'Could not update cap',true); }
+}
+async function clearLlmCapOverride(jobId){
+  try{
+    await api('/jobs/'+jobId+'/llm-cap-override',{method:'PATCH',body:{value:null}});
+    toast('LLM-grading cap override cleared');
+    const h=$('#apanel'); if(h) h.innerHTML=await panelForward();
+  }catch(e){ toast(e.message||'Could not clear cap',true); }
+}
+async function saveNotificationFrequencyOverride(jobId){
+  const el=$('#notifFreqInput'); if(!el) return;
+  try{
+    const r=await api('/jobs/'+jobId+'/notification-frequency-override',{method:'PATCH',body:{value:el.value}});
+    toast('Application notifications set to: '+r.notification_frequency);
+    const h=$('#apanel'); if(h) h.innerHTML=await panelForward();
+  }catch(e){ toast(e.message||'Could not update notifications',true); }
+}
 async function openPahAdminCandidate(pipelineId){
   let c;
   try{ c=await api('/pah/admin/candidates/'+pipelineId); }
@@ -4122,7 +4205,7 @@ async function markPahHired(pipelineId){
 function flagJob(id,title){
   $('#modal').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
     <div class="eyebrow" style="color:var(--stop)">Flag job</div>
-    <h3 style="font-size:18px;margin:6px 0 8px">Flag "${title}"?</h3>
+    <h3 style="font-size:18px;margin:6px 0 8px">Flag "${esc(title)}"?</h3>
     <p style="color:var(--muted);font-size:13px">This hides the job from candidates and emails the employer the reason. You can restore it later.</p>
     <div id="flagerr" style="color:var(--stop);font-size:13px;margin:6px 0;display:none"></div>
     <label class="fld"><span class="lab">Reason (sent to employer)</span><textarea class="textarea" id="flagreason" placeholder="e.g. Job violates our posting rules…"></textarea></label>
@@ -4276,6 +4359,67 @@ async function panelApplications(){
 }
 async function decide(id,decision){try{await api('/admin/applications/'+id+'/decision',{method:'PATCH',body:{decision}});toast('Decision saved');renderAdminPanel();}catch(e){toast(e.message,true);}}
 async function toggleTop20(id,val){try{await api('/admin/applications/'+id+'/top20',{method:'PATCH',body:{in_top20:val}});toast('Top 20 updated');renderAdminPanel();}catch(e){toast(e.message,true);}}
+/* ===== Staff internal mailbox ===== */
+let _mailboxView='inbox'; let _mailboxComposeSel={};
+async function mailboxTab(view){ _mailboxView=view; const h=$('#apanel'); if(h) h.innerHTML=await panelMailbox(); }
+function toggleMailboxRecipient(id,el){ if(el.checked)_mailboxComposeSel[id]=true; else delete _mailboxComposeSel[id]; }
+async function panelMailbox(){
+  const tabs=`<div style="display:flex;gap:8px;margin-bottom:14px">
+    <button class="btn ${_mailboxView==='inbox'?'signal':'ghost'} sm" onclick="mailboxTab('inbox')">Inbox</button>
+    <button class="btn ${_mailboxView==='sent'?'signal':'ghost'} sm" onclick="mailboxTab('sent')">Sent</button>
+    <button class="btn ${_mailboxView==='compose'?'signal':'ghost'} sm" onclick="mailboxTab('compose')">Compose</button>
+  </div>`;
+  if(_mailboxView==='compose'){
+    let staff=[];
+    try{ staff=await api('/staff-messages/staff-list'); }catch(e){}
+    return `<div class="card">${tabs}
+      <h3 style="font-size:17px;margin-bottom:10px">New message</h3>
+      <div class="fld"><span class="lab">To</span>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+          ${staff.map(s=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:6px 10px">
+            <input type="checkbox" onchange="toggleMailboxRecipient(${s.id},this)"/> ${esc(s.full_name)} <span class="hint">(${esc(s.role)})</span>
+          </label>`).join('')||'<span class="sub">No other staff found.</span>'}
+        </div>
+      </div>
+      <label class="fld"><span class="lab">Message</span><textarea class="textarea" id="mailboxBody" style="min-height:120px"></textarea></label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:14px"><input type="checkbox" id="mailboxAlsoEmail"/> Also send by email</label>
+      <button class="btn signal" id="mailboxSendBtn" onclick="sendMailboxMessage()">Send</button>
+    </div>`;
+  }
+  const path=_mailboxView==='sent'?'/staff-messages/sent':'/staff-messages/inbox';
+  let msgs=[];
+  try{ msgs=await api(path); }catch(e){}
+  return `<div class="card">${tabs}
+    <h3 style="font-size:17px;margin-bottom:10px">${_mailboxView==='sent'?'Sent':'Inbox'}</h3>
+    ${msgs.map(m=>`<div class="card" style="margin-bottom:10px;background:${(_mailboxView==='inbox'&&!m.read_at)?'#fbf8ee':'var(--paper-2)'}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <b>${_mailboxView==='sent'?('To: '+m.recipients.map(r=>esc(r.full_name)).join(', ')):esc(m.sender_name)}</b>
+        <span class="sub" style="font-size:11px">${fmtDateTime(m.created_at)}</span>
+      </div>
+      <p class="prose" style="margin:6px 0 0">${esc(m.body)}</p>
+      ${(_mailboxView==='inbox'&&!m.read_at)?`<button class="btn ghost tiny" style="margin-top:8px" onclick="markMailboxRead(${m.id})">Mark read</button>`:''}
+    </div>`).join('')||'<div class="empty"><h3>Nothing here yet</h3></div>'}
+  </div>`;
+}
+async function sendMailboxMessage(){
+  const ids=Object.keys(_mailboxComposeSel).map(Number);
+  const bodyEl=$('#mailboxBody'); const body=bodyEl?bodyEl.value.trim():'';
+  if(!ids.length)return toast('Pick at least one recipient',true);
+  if(!body)return toast('Write a message',true);
+  const alsoEmail=!!($('#mailboxAlsoEmail')&&$('#mailboxAlsoEmail').checked);
+  const b=$('#mailboxSendBtn'); if(b){b.disabled=true;b.innerHTML='<span class="spin"></span>';}
+  try{
+    await api('/staff-messages',{method:'POST',body:{recipient_ids:ids,body,also_email:alsoEmail}});
+    toast('Message sent');
+    _mailboxComposeSel={}; _mailboxView='sent';
+    const h=$('#apanel'); if(h) h.innerHTML=await panelMailbox();
+  }catch(e){ toast(e.message||'Could not send',true); if(b){b.disabled=false;b.textContent='Send';} }
+}
+async function markMailboxRead(id){
+  try{ await api('/staff-messages/'+id+'/read',{method:'PATCH'}); const h=$('#apanel'); if(h) h.innerHTML=await panelMailbox(); }
+  catch(e){ toast(e.message,true); }
+}
+
 let _enqPage=0;
 async function enqPage(p){ _enqPage=p; const host=$('#apanel'); if(host) host.innerHTML=await panelEnquiries(); }
 async function panelEnquiries(){
@@ -4338,7 +4482,7 @@ async function panelSubs(){
       <button class="btn ghost sm" style="margin-left:auto" onclick="openEnterpriseActivate()">Activate Enterprise plan</button>
     </div>
     <table><thead><tr><th>SN</th><th>Employer</th><th>Plan</th><th>Status</th><th>Start</th><th>End / Renews</th></tr></thead><tbody>
-    ${rows.map((s,i)=>{const isEnt=(s.plan||'').toLowerCase()==='enterprise';const planLabel=isEnt?`<span class="chip" style="background:var(--pending-bg);color:var(--pending);font-weight:700;padding:2px 9px">◆ Enterprise</span>`:esc(s.plan||'—');return `<tr><td class="mono">${String(_subPage*DASH_PAGE_SIZE+i+1).padStart(2,'0')}</td><td><button class="btn ghost tiny" onclick="userProfile(${s.employer_id})">${esc(s.company_name||s.employer_email||('#'+s.employer_id))}</button><div class="sub" style="font-size:11px">${esc(s.employer_ref||('#'+s.employer_id))}</div></td><td>${planLabel}${s.smart_ai?' <span class="chip" style="padding:1px 6px;font-size:10px">+ Smart AI</span>':''}${s.company_ref?`<div class="sub" style="font-size:11px">${esc(s.company_ref)}${s.slots_override?` · ${s.slots_override} jobs`:''}${s.llm_assist_cap_override?` · cap ${esc(s.llm_assist_cap_override)}`:''}${s.team_seat_limit?` · ${s.team_seat_limit} seats`:''}</div>`:''}</td><td><span class="status st-${s.status==='active'?'active':'pending'}"><span class="dot"></span>${s.status}</span></td><td>${s.current_period_start?fmtDate(s.current_period_start):'—'}</td><td>${s.status==='trialing'?`Renews ${s.current_period_end?fmtDate(s.current_period_end):'—'}`:(s.current_period_end?fmtDate(s.current_period_end):'—')}</td></tr>`;}).join('')||`<tr><td colspan="6" style="color:var(--muted)">No subscriptions yet.</td></tr>`}
+    ${rows.map((s,i)=>{const isEnt=(s.plan||'').toLowerCase()==='enterprise';const planLabel=isEnt?`<span class="chip" style="background:var(--pending-bg);color:var(--pending);font-weight:700;padding:2px 9px">◆ Enterprise</span>`:esc(s.plan||'—');return `<tr><td class="mono">${String(_subPage*DASH_PAGE_SIZE+i+1).padStart(2,'0')}</td><td><button class="btn ghost tiny" onclick="userProfile(${s.employer_id})">${esc(s.company_name||s.employer_email||('#'+s.employer_id))}</button><div class="sub" style="font-size:11px">${esc(s.employer_ref||('#'+s.employer_id))}</div></td><td>${planLabel}${s.smart_ai?' <span class="chip" style="padding:1px 6px;font-size:10px">+ Deep Analysis</span>':''}${s.company_ref?`<div class="sub" style="font-size:11px">${esc(s.company_ref)}${s.slots_override?` · ${s.slots_override} jobs`:''}${s.llm_assist_cap_override?` · cap ${esc(s.llm_assist_cap_override)}`:''}${s.team_seat_limit?` · ${s.team_seat_limit} seats`:''}</div>`:''}</td><td><span class="status st-${s.status==='active'?'active':'pending'}"><span class="dot"></span>${s.status}</span></td><td>${s.current_period_start?fmtDate(s.current_period_start):'—'}</td><td>${s.status==='trialing'?`Renews ${s.current_period_end?fmtDate(s.current_period_end):'—'}`:(s.current_period_end?fmtDate(s.current_period_end):'—')}</td></tr>`;}).join('')||`<tr><td colspan="6" style="color:var(--muted)">No subscriptions yet.</td></tr>`}
     </tbody></table>${pagerHTML(_subPage,pages,`subPage(${_subPage-1})`,`subPage(${_subPage+1})`)}</div>`;
 }
 function openEnterpriseActivate(){
@@ -4390,7 +4534,7 @@ function _canSuspendStaff(actor,target){
 function suspendStaff(id,name){
   $('#modal').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
     <div class="eyebrow" style="color:var(--stop)">Suspend staff</div>
-    <h3 style="font-size:18px;margin:6px 0 8px">Suspend ${name}?</h3>
+    <h3 style="font-size:18px;margin:6px 0 8px">Suspend ${esc(name)}?</h3>
     <p style="color:var(--muted);font-size:13px">They will be blocked from logging in and emailed the reason. You can restore them later.</p>
     <div id="sserr" style="color:var(--stop);font-size:13px;margin:6px 0;display:none"></div>
     <label class="fld"><span class="lab">Reason (sent to them)</span><textarea class="textarea" id="ssreason" placeholder="Reason for suspension…"></textarea></label>
